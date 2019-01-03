@@ -6,19 +6,29 @@ import numpy as np
 import os
 import random
 import scipy.io.wavfile as sio
+import scipy.signal as ss
 import subprocess
 import tempfile
 
 class Source:
     def __init__(self, source, sr=16000):
         if isinstance(source, str):
-            self.sr, self.source = open_sound(source)
+            self.sr, self.signal = open_sound(source)
         elif isinstance(source, np.ndarray):
-            self.source = source
+            self.signal = source
         else:
             raise TypeError("Unsupported argument type {}".format(type(source)))
-        assert len(self.source.shape) == 1
+        assert len(self.signal.shape) == 1
 
+    def __getitem__(self, key):
+        return self.__getattribute__(key)
+
+    def __setitem__(self, key, v):
+        self.__setattribute__(key, v)
+
+    @property
+    def duration(self):
+        return len(self.signal)
 
 class Diffuse:
     def __init__(self):
@@ -30,11 +40,17 @@ class Diffuse:
             raise TypeError("Unsupported argument type {}".format(type(source)))
         self.channels = self.source.shape[0]  # TODO: correct index?
 
+    def __getitem__(self, key):
+        return self.__getattribute__(key)
+
+    def __setitem__(self, key, v):
+        self.__setattribute__(key, v)
+
 
 class Matrix:
     def __init__(self, positions):
         self.positions = np.array(positions)
-
+        self.n_channels = len(self.positions)
 
 class Scene:
     def __init__(self, sound_speed = 340, sample_rate=16000):
@@ -69,7 +85,7 @@ class Scene:
             else:
                 raise TypeError("Diffuse sources are too short!")
         # create zeroed channels
-        sound = np.zeros([matrix.n_channels, max_end])
+        sound = np.zeros([matrix.n_channels, max_end], np.float32)
         # crop diffuse to proper lengths and mix them
         for src in self.diffuse:
             if src["random_start"]:
@@ -83,25 +99,32 @@ class Scene:
         delays = np.zeros((len(matrix.positions), len(self.sources)))
         for mic_ix, pos in enumerate(matrix.positions):
             for src_ix, source in enumerate(self.sources):
-                distance = np.sqrt(np.sum(source.position - pos)**2)
+                print(source.position)
+                distance = np.sqrt(np.sum((source.position - pos)**2))
                 if gain_scaling:
                     dist_ratio = distance / source.reference_distance
                     gains[mic_ix, src_ix] = dist_ratio ** -2
                 else:
                     gains[mic_ix, src_ix] = 1
+                print("Distance:", distance)
+                print("TDOA:", distance / self.sound_speed * self.sample_rate)
                 delays[mic_ix, src_ix] = distance / self.sound_speed * self.sample_rate
+        if align_delays:
+            delays -= delays.min()
+        print(delays)
         for mic_ix in range(len(matrix.positions)):
             for src_ix, source in enumerate(self.sources):
-                signal = gains[mic_ix, :] * source.signal
+                signal = gains[mic_ix, src_ix] * source.signal
                 signal = self.fractional_delay(signal, delays[mic_ix, src_ix])
-                sound[mic_ix, source.start:source.start+source.length] += signal
+                sound[mic_ix, source.start:source.start+source.duration] += signal
         return sound
 
     def resample(self, signal, source_sample_rate):
         return librosa.resample(signal, source_sample_rate, self.sample_rate)
 
     def fractional_delay(self, signal, delay, crop=True):
-        pass
+        # TODO: fractional time delay
+        return np.concatenate([np.zeros(int(delay), np.float32), signal[:len(signal)-int(delay)]])
 
 def open_sound(fname):
     """
@@ -110,15 +133,28 @@ def open_sound(fname):
     if fname.endswith(".flac"):
         file = tempfile.mktemp() + ".wav"
         subprocess.Popen(["sox", fname, file]).communicate()
-        data = sio.read(file)
+        sr, data = sio.read(file)
         os.remove(file)
-        return data
-    return sio.read(source)
+        data = data.astype(np.float32)
+        if np.any(data > 1):
+            data /= 2**15
+        return sr, data
+    sr, data = sio.read(source)
+    data = data.astype(np.float32)
+    if np.any(data > 1):
+        data /= 2**15
+    return sr, data
 
-def save_sound(sound, fname):
+def save_sound(sound, fname, rate):
     """
     Saves in 16kHz, 16bit, performing necessary limiting
     """
+    sound = sound * 2**15
+    sound = sound.astype(np.int16)
+    print(sound)
+    print(rate)
+    print(fname)
+    sio.write(fname, rate, sound.T)
 
 def iterate_src_pos(sources, positions, n):
     return zip(random.sample(sources, n), random.sample(positions, n))
@@ -133,7 +169,7 @@ def create_dataset(sources, positions, diffuse, n_src, n_examples, target_fname,
         for diff in random.sample(diffuse, n_diff):
              scene.add_diffuse(diff)
         sound = scene.render(matrix)
-        save_sound(sound, target_fname.format(i))
+        save_sound(sound, target_fname.format(i), scene.sample_rate)
 
 def main():
     parser = argparse.ArgumentParser(
@@ -148,6 +184,7 @@ def main():
     parser.add_argument("--nsrc", nargs=1, help="Specify how much directed sources to use")
     parser.add_argument("--src", nargs='+', help="Paths for source files (may be directories)")
     parser.add_argument("--gain", help="Whether to calculate gains of the sources")
+    parser.add_argument("--nexamples", nargs=1, help="Number of examples in the dataset")
     args = parser.parse_args()
     if args.pos is None:
         print(parser.format_usage())
@@ -189,13 +226,15 @@ def main():
             positions = np.array(json.loads(src))
     else:
         positions = [np.random.random(3) - 0.5 for x in range(10)]
-        positions = [x / np.sum(x) for x in range(10)]
-    print(sources)
+        positions = [x / np.sum(x) for x in positions]
+    print("Sources:", len(sources))
+    print(positions)
     ndiff = int(args.ndiff[0]) if args.ndiff else 0
-    nsrc = int(args.ndiff[0]) if args.nsrc else 1
+    nsrc = int(args.nsrc[0]) if args.nsrc else 1
+    nexamples = int(args.nexamples[0]) if args.nexamples else 10
     try: os.mkdir("dataset")
     except: pass
-    create_dataset(sources, positions, diffuse, nsrc, n_examples=10,
+    create_dataset(sources, positions, diffuse, nsrc, n_examples=nexamples,
         target_fname="dataset/{}.wav", n_diff=ndiff, matrix=matrix)
 
 
@@ -203,15 +242,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-"""
-Use case:
-
-scene = Scene()
-speaker = Source("somefile.wav")
-scene.add_source(speaker, [0.3, 0.5, 0.5])
-matrix = Matrix([[0.3, 0.4, 0.0], [0.0, 0.2, 0.2], [0.0, 0.0])
-scene.render(matrix)
-
-
-"""
