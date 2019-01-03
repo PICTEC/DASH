@@ -24,28 +24,34 @@ class Source:
         return self.__getattribute__(key)
 
     def __setitem__(self, key, v):
-        self.__setattribute__(key, v)
+        self.__setattr__(key, v)
 
     @property
     def duration(self):
         return len(self.signal)
 
 class Diffuse:
-    def __init__(self):
+    def __init__(self, source, sr=16000, amp=1.0):
         if isinstance(source, str):
-            self.sr, self.source = open_sound(source)
+            self.sr, self.signal = open_sound(source)
+            self.signal = self.signal.T
         elif isinstance(source, np.ndarray):
-            self.source = source
+            self.signal = source
         else:
             raise TypeError("Unsupported argument type {}".format(type(source)))
-        self.channels = self.source.shape[0]  # TODO: correct index?
+        self.signal = self.signal * amp
+        self.channels = self.signal.shape[0]  # TODO: correct index?
+        print(self.channels)
 
     def __getitem__(self, key):
         return self.__getattribute__(key)
 
     def __setitem__(self, key, v):
-        self.__setattribute__(key, v)
+        self.__setattr__(key, v)
 
+    @property
+    def length(self):
+        return self.signal.shape[1]
 
 class Matrix:
     def __init__(self, positions):
@@ -139,7 +145,7 @@ def open_sound(fname):
         if np.any(data > 1):
             data /= 2**15
         return sr, data
-    sr, data = sio.read(source)
+    sr, data = sio.read(fname)
     data = data.astype(np.float32)
     if np.any(data > 1):
         data /= 2**15
@@ -160,14 +166,15 @@ def iterate_src_pos(sources, positions, n):
     return zip(random.sample(sources, n), random.sample(positions, n))
 
 def create_dataset(sources, positions, diffuse, n_src, n_examples, target_fname,
-                   n_diff, matrix):
+                   n_diff, matrix, bgamp):
     for i in range(n_examples):
         scene = Scene()
         for src, pos in iterate_src_pos(sources, positions, n_src):
             speaker = Source(src)
             scene.add_source(speaker, pos)
         for diff in random.sample(diffuse, n_diff):
-             scene.add_diffuse(diff)
+            diff = Diffuse(diff, amp=bgamp)
+            scene.add_diffuse(diff)
         sound = scene.render(matrix)
         save_sound(sound, target_fname.format(i), scene.sample_rate)
 
@@ -185,6 +192,7 @@ def main():
     parser.add_argument("--src", nargs='+', help="Paths for source files (may be directories)")
     parser.add_argument("--gain", help="Whether to calculate gains of the sources")
     parser.add_argument("--nexamples", nargs=1, help="Number of examples in the dataset")
+    parser.add_argument("--bgamp", nargs=1, help="Amplify diffuse sources by this amount")
     args = parser.parse_args()
     if args.pos is None:
         print(parser.format_usage())
@@ -213,13 +221,14 @@ def main():
             exit(1)
     else:
         for src in args.diff:
-            if src.endswith(".wav") or fname.endswith(".flac"):
+            if src.endswith(".wav") or src.endswith(".flac"):
                 diffuse.append(src)
             else:
                 for path, dirs, fnames in os.walk(src):
                     for fname in fnames:
                         if fname.endswith(".wav") or fname.endswith(".flac"):
                             diffuse.append(os.path.join(path, fname))
+    print(diffuse)
     positions = []
     if args.srcpos is not None:
         for src in args.srcpos:
@@ -232,10 +241,11 @@ def main():
     ndiff = int(args.ndiff[0]) if args.ndiff else 0
     nsrc = int(args.nsrc[0]) if args.nsrc else 1
     nexamples = int(args.nexamples[0]) if args.nexamples else 10
+    bgamp = float(args.bgamp[0]) if args.bgamp else 1
     try: os.mkdir("dataset")
     except: pass
     create_dataset(sources, positions, diffuse, nsrc, n_examples=nexamples,
-        target_fname="dataset/{}.wav", n_diff=ndiff, matrix=matrix)
+        target_fname="dataset/{}.wav", n_diff=ndiff, matrix=matrix, bgamp=bgamp)
 
 
 
