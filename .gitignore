@@ -102,3 +102,12 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+# links to datasets and wavfiles
+*.wav
+*.flac
+LibriSpeech
+CHiME3
+
+# binary archives
+*.tgz
