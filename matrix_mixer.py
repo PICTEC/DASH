@@ -1,4 +1,7 @@
 #!/usr/bin/python3
+
+# python matrix_mixer.py --pos '[[0, 0.1, 0.0],[0,0,0],[0,-0.1,0],[0.19,0.1,0],[0.19,0,0],[0.19, -0.1, 0.0]]' --src LibriSpeech/dev-clean --nexamples 15 --nsrc 1 --ndiff 1 --diff backgrounds --bgamp 0.5
+
 import argparse
 import json
 import librosa
@@ -128,9 +131,10 @@ class Scene:
     def resample(self, signal, source_sample_rate):
         return librosa.resample(signal, source_sample_rate, self.sample_rate)
 
-    def fractional_delay(self, signal, delay, crop=True):
-        # TODO: fractional time delay
-        return np.concatenate([np.zeros(int(delay), np.float32), signal[:len(signal)-int(delay)]])
+    def fractional_delay(self, signal, delay, level=30):
+        # uses non-causal ideal fractional delay filter
+        filter = np.sinc(np.arange(2 * level + 1) - level - delay)
+        return np.convolve(signal, filter, mode='same')
 
 def open_sound(fname):
     """
@@ -178,6 +182,31 @@ def create_dataset(sources, positions, diffuse, n_src, n_examples, target_fname,
         sound = scene.render(matrix)
         save_sound(sound, target_fname.format(i), scene.sample_rate)
 
+def by_list(sources, positions, diffuse, n_src, n_examples, target_fname,
+                   n_diff, matrix, bgamp):
+    spec = []
+    spec.append("Background amplification: {}, sources per recording: {}".format(
+        bgamp, n_src))
+    for i in range(n_examples):
+        scene = Scene()
+        batch, sources = sources[:n_src], sources[n_src:]
+        batch_pos = random.sample(positions, n_src)
+        batch_diff = random.sample(diffuse, n_diff)
+        for src, pos in zip(batch, batch_pos):
+            speaker = Source(src)
+            scene.add_source(speaker, pos)
+        for diff in batch_diff:
+            diff = Diffuse(diff, amp=bgamp)
+            scene.add_diffuse(diff)
+        sound = scene.render(matrix)
+        save_sound(sound, target_fname.format(i), scene.sample_rate)
+        spec.append("{} with diffuse {} ".format(
+            ["{} @ {}".format(x, y) for x,y in zip(batch, batch_pos)],
+            batch_diff))
+    with open("spec.txt", "w") as f:
+        f.write("\n".join(spec))
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Creates a dataset of artificial multi-channel mixtures",
@@ -191,6 +220,7 @@ def main():
     parser.add_argument("--nsrc", nargs=1, help="Specify how much directed sources to use")
     parser.add_argument("--src", nargs='+', help="Paths for source files (may be directories)")
     parser.add_argument("--gain", help="Whether to calculate gains of the sources")
+    parser.add_argument("--srclist", help="Instead of randomizing sources, use all of them")
     parser.add_argument("--nexamples", nargs=1, help="Number of examples in the dataset")
     parser.add_argument("--bgamp", nargs=1, help="Amplify diffuse sources by this amount")
     args = parser.parse_args()
@@ -244,8 +274,12 @@ def main():
     bgamp = float(args.bgamp[0]) if args.bgamp else 1
     try: os.mkdir("dataset")
     except: pass
-    create_dataset(sources, positions, diffuse, nsrc, n_examples=nexamples,
-        target_fname="dataset/{}.wav", n_diff=ndiff, matrix=matrix, bgamp=bgamp)
+    if args.srclist:
+        by_list(sources, positions, diffuse, nsrc, n_examples=nexamples,
+            target_fname="dataset/{}.wav", n_diff=ndiff, matrix=matrix, bgamp=bgamp)
+    else:
+        create_dataset(sources, positions, diffuse, nsrc, n_examples=nexamples,
+            target_fname="dataset/{}.wav", n_diff=ndiff, matrix=matrix, bgamp=bgamp)
 
 
 
