@@ -5,7 +5,7 @@ import argparse
 from audio import Audio
 from model import Model
 from post_filter import PostFilter
-from utils import fft, ifft
+from utils import fft, Remix
 
 def main(audio_config, post_filter_config, model_config):
     """
@@ -15,6 +15,7 @@ def main(audio_config, post_filter_config, model_config):
     audio = Audio(**audio_config)
     post_filter = PostFilter(**post_filter_config)
     model = Model(**model_config)
+    remixer = Remix()
     with audio:
         model.initialize()
         post_filter.initialize()
@@ -23,7 +24,7 @@ def main(audio_config, post_filter_config, model_config):
             sample = fft(sample)
             sample = model.process(sample)
             sample = post_filter.process(sample)
-            sample = ifft(sample)
+            sample = remixer.process(sample)
             audio.play(sample)
 
 def get_args():

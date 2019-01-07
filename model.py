@@ -1,6 +1,8 @@
 import numpy as np
 
-class Model(BufferMixin):
+from utils import BufferMixin
+
+class Model(BufferMixin([1, 257], np.complex64)):
     """
     Via beamformer, whole pipeline for estimation of masks is understood.
     Acoustic model is a generative model that filters the speech so it sounds
