@@ -111,3 +111,6 @@ CHiME3
 
 # binary archives
 *.tgz
+
+# all things binary in bin
+bin/*
