@@ -114,3 +114,10 @@ CHiME3
 
 # all things binary in bin
 bin/*
+
+# configuration of your own drive integration
+credentials.json
+token.json
+
+# hashes of storage of things on drive
+.hashes
