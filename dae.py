@@ -110,8 +110,8 @@ if __name__ == "__main__":
     assert args.o is not None
     print(args)
     if args.t:
-        loader = Loader(args.t)
+        loader = Loader(args.t[0])
     else:
         loader = Simulator()
-    dataset = loader.load(args.p)
-    training(dataset, path=args.o)
+    dataset = loader.load(args.p[0])
+    training(dataset, path=args.o[0])
