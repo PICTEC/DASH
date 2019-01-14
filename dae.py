@@ -53,9 +53,9 @@ class StopOnConvergence(Callback):
 
 class Simulator:
     def __init__(self):
-        self.n_records = 160
-        self.valid = 32
-        self.test = 32
+        self.n_records = 3200
+        self.valid = 160
+        self.test = 160
         self.train = self.n_records - self.valid - self.test
 
     def load(self, path):
@@ -63,14 +63,16 @@ class Simulator:
         fnames = random.sample(fnames, self.n_records)
         max_len = max([len(open_sound(x)[1]) for x in fnames])
         max_len = 1 + (max_len - 512) // 128
-        self.X = np.zeros([self.n_records, max_len, 257], np.float32)
-        self.Y = np.zeros([self.n_records, max_len, 257], np.float32)
+        self.X = np.ones([self.n_records, max_len, 257], np.float32)
+        self.Y = np.ones([self.n_records, max_len, 257], np.float32)
+        self.X *= np.log(2e-12)
+        self.Y *= np.log(2e-12)
         for ix, fname in enumerate(fnames):
             sr, rec = open_sound(fname)
             assert sr == 16000
-            rec = np.log(np.abs(librosa.stft(rec.astype(np.float32) / (2**15), n_fft=512, hop_length=128)[:max_len]) ** 2)
-            self.X[ix] = self.mask(rec)
-            self.Y[ix] = rec
+            rec = np.log(2e-12 + np.abs(librosa.stft(rec.astype(np.float32) / (2**15), n_fft=512, hop_length=128).T[:max_len]) ** 2)
+            self.X[ix, :len(rec)] = self.mask(rec)
+            self.Y[ix, :len(rec)] = rec
         return ([self.X[:self.train], self.Y[:self.train]],
                 [self.X[self.train:self.train+self.valid], self.Y[self.train:self.train+self.valid]],
                 [self.X[-self.test:], self.Y[-self.test:]])
@@ -94,9 +96,9 @@ def training(dataset, path):
     model = mk_model()
     # backup_callback = BackupCallback()
     for lr in [0.001, 0.0001, 0.00001]:
-        model.compile(optimizer=Adam(lr), loss='mse',
-            callbacks=[StopOnConvergence(3)])  # , backup_callback])
-        model.fit(train_X, train_Y, validation_data=[valid_X, valid_Y], epochs=100)
+        model.compile(optimizer=Adam(lr, clipnorm=1.), loss='mse')
+        model.fit(train_X, train_Y, validation_data=[valid_X, valid_Y], epochs=100,
+                    callbacks=[StopOnConvergence(3)], batch_size=8)  # , backup_callback])
     # test...
     save_model(model, path)  # create postfilter object...
 
