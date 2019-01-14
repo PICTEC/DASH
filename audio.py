@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-import threading
-from queue import Queue
-import pyaudio
+
 import numpy as np
+import pyaudio
+from queue import Queue
+import threading
 from time import sleep
 
-class play_thread(threading.Thread):
+class PlayThread(threading.Thread):
     """Thread which pass data stored in the buffer to the speakers
 
     Args:
@@ -17,7 +18,7 @@ class play_thread(threading.Thread):
         id (int, optional): Index of output Device to use
     """
     def __init__(self, p, buffer, hop, sample_rate, channels, id=None):
-        super(play_thread, self).__init__()
+        super(PlayThread, self).__init__()
 
         self.buffer = buffer
         self.hop = hop
@@ -57,7 +58,7 @@ class play_thread(threading.Thread):
         self.stream.close()
 
 
-class read_thread(threading.Thread):
+class ReadThread(threading.Thread):
     """Thread which read data from microphones and pass it to the buffer
 
     Args:
@@ -69,7 +70,7 @@ class read_thread(threading.Thread):
         id (int, optional): Index of input Device to use
     """
     def __init__(self, p, buffer, hop, sample_rate, channels, id=None):
-        super(read_thread, self).__init__()
+        super(ReadThread, self).__init__()
 
         self.buffer = buffer
         self.hop = hop
@@ -92,14 +93,14 @@ class read_thread(threading.Thread):
         Get data from microphones and put it to the buffer
         """
         while not self.stopped:
-            input = self.stream.read(2*self.hop)
+            input = self.stream.read(2 * self.hop)
             self.buffer.put(input)
 
     def stop(self):
         """Stop thread and close stream
         """
         self.stopped = True
-        sleep(self.hop/self.sample_rate)
+        sleep(self.hop / self.sample_rate)
         self.stream.close()
 
 class Audio:
@@ -127,8 +128,8 @@ class Audio:
         self.n_in_channels = n_in_channels
         self.n_out_channels = n_out_channels
 
-        self.in_buffer = Queue(maxsize=buffer_size/buffer_hop)
-        self.out_buffer = Queue(maxsize=buffer_size/buffer_hop)
+        self.in_buffer = Queue(maxsize=buffer_size / buffer_hop)
+        self.out_buffer = Queue(maxsize=buffer_size / buffer_hop)
 
         self.p = pyaudio.PyAudio()
         self.in_thread = None
@@ -159,18 +160,18 @@ class Audio:
     def open(self, input_device_id=None, output_device_id=None):
         """Create and start threads
         """
-        self.in_thread = read_thread(p=self.p,
-                                     buffer=self.in_buffer,
+        self.in_thread = ReadThread(p=self.p,
+                                    buffer=self.in_buffer,
+                                    hop=self.buffer_hop,
+                                    sample_rate=self.sample_rate,
+                                    channels=self.n_in_channels,
+                                    id=input_device_id)
+        self.out_thread = PlayThread(p=self.p,
+                                     buffer=self.out_buffer,
                                      hop=self.buffer_hop,
                                      sample_rate=self.sample_rate,
-                                     channels=self.n_in_channels,
-                                     id=input_device_id)
-        self.out_thread = play_thread(p=self.p,
-                                      buffer=self.out_buffer,
-                                      hop=self.buffer_hop,
-                                      sample_rate=self.sample_rate,
-                                      channels=self.n_out_channels,
-                                      id=output_device_id)
+                                     channels=self.n_out_channels,
+                                     id=output_device_id)
         self.in_thread.start()
         self.out_thread.start()
 
