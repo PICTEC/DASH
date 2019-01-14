@@ -9,9 +9,9 @@ import numpy as np
 import os
 import random
 import scipy.io.wavfile as sio
-import scipy.signal as ss
-import subprocess
-import tempfile
+
+from utils import list_sounds, open_sound
+
 
 class Source:
     def __init__(self, source, sr=16000):
@@ -136,24 +136,6 @@ class Scene:
         filter = np.sinc(np.arange(2 * level + 1) - level - delay)
         return np.convolve(signal, filter, mode='same')
 
-def open_sound(fname):
-    """
-    Opens flac and wav files
-    """
-    if fname.endswith(".flac"):
-        file = tempfile.mktemp() + ".wav"
-        subprocess.Popen(["sox", fname, file]).communicate()
-        sr, data = sio.read(file)
-        os.remove(file)
-        data = data.astype(np.float32)
-        if np.any(data > 1):
-            data /= 2**15
-        return sr, data
-    sr, data = sio.read(fname)
-    data = data.astype(np.float32)
-    if np.any(data > 1):
-        data /= 2**15
-    return sr, data
 
 def save_sound(sound, fname, rate):
     """
@@ -238,10 +220,7 @@ def main():
         if src.endswith(".wav") or src.endswith(".flac"):
             sources.append(src)
         else:
-            for path, dirs, fnames in os.walk(src):
-                for fname in fnames:
-                    if fname.endswith(".wav") or fname.endswith(".flac"):
-                        sources.append(os.path.join(path, fname))
+            sources += list_sounds(src)
     print(sources)
     diffuse = []
     if args.diff is None:
@@ -254,10 +233,7 @@ def main():
             if src.endswith(".wav") or src.endswith(".flac"):
                 diffuse.append(src)
             else:
-                for path, dirs, fnames in os.walk(src):
-                    for fname in fnames:
-                        if fname.endswith(".wav") or fname.endswith(".flac"):
-                            diffuse.append(os.path.join(path, fname))
+                diffuse += list_sounds(src)
     print(diffuse)
     positions = []
     if args.srcpos is not None:
