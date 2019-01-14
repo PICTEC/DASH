@@ -121,3 +121,10 @@ token.json
 
 # hashes of storage of things on drive
 .hashes
+
+# everything in binary storage
+storage/*
+
+# all models
+*.h5
+*/*.h5
