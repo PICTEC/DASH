@@ -1,7 +1,7 @@
 import argparse
 import keras.backend as K
 from keras.callbacks import Callback
-from keras.laters import Input, Lambda, LeakyReLU, Conv2D, TimeDistributed, \
+from keras.layers import Input, Lambda, LeakyReLU, Conv2D, TimeDistributed, \
     Dense, Flatten
 from keras.models import Model
 from keras.optimizers import Adam
