@@ -39,6 +39,6 @@ if __name__ == "__main__":
     """
     args = get_args()
     audio_config = {}
-    post_filter_config = {}
+    post_filter_config = {"mode": "dae", "fname": "storage/model-dae.h5"}
     model_config = {}
     main(audio_config, post_filter_config, model_config)
