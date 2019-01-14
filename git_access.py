@@ -23,8 +23,6 @@ TOKEN = None
 def get_service():
     global TOKEN
     store = file.Storage('token.json')
-    with open('token.json') as f:
-        TOKEN = json.load(f)
     creds = store.get()
     if not creds or creds.invalid:
         flow = client.flow_from_clientsecrets('credentials.json', SCOPES)
@@ -104,28 +102,6 @@ def diff(staged, items):
         else:
             really_staged.append(fstaged)
     return unpulled, really_staged
-
-
-def old_push(fname):
-    parent = get_folder()
-    print(list(TOKEN.keys()))
-    token = TOKEN['id_token_jwt']
-    headers = {"Authorization": token}
-    para = {
-        "name": fname.split("/")[-1],
-        "parents": [parent]
-    }
-    files = {
-        'data': ('metadata', json.dumps(para), 'application/json; charset=UTF-8'),
-        'file': ('application/octet-stream', open(fname, "rb"))
-    }
-    r = requests.post(
-        "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",
-        headers=headers,
-        files=files
-    )
-    if r.status_code != 200:
-        print(r.text)
 
 
 def push(fname):
