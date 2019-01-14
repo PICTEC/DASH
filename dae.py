@@ -62,7 +62,7 @@ class Simulator:
         fnames = list_sounds(path)
         fnames = random.sample(fnames, self.n_records)
         max_len = max([len(open_sound(x)[1]) for x in fnames])
-        max_len = 1 + (max_len - 512) / 128
+        max_len = 1 + (max_len - 512) // 128
         self.X = np.zeros([self.n_records, max_len, 257], np.float32)
         self.Y = np.zeros([self.n_records, max_len, 257], np.float32)
         for ix, fname in enumerate(fnames):
