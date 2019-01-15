@@ -91,9 +91,8 @@ original_wav = sio.read('/home/kglowczewski/PICTEC/dash/dataset/0.wav')
 original_wav = np.asarray(original_wav[1])
 original_wav = original_wav / 2**16
 
-x1 = np.linspace(-np.pi, 3*np.pi, 512)
-x2 = np.append(x1[10:512], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], axis=0)
-
+# x1 = np.linspace(-np.pi, 3*np.pi, 512)
+# x2 = np.append(x1[10:512], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], axis=0)
 
 def VAD(x, mu=MU_VAD, init_est=INIT_EST_VAD):
     global frame
@@ -133,7 +132,6 @@ def gcc_phat(sigl, sigr, len=FRAME_LEN, fs=SAMPLING_FREQUENCY):
 # c speed of sound
 # d distance between mics
 
-
 def compute_angle(c, n, d, fs=SAMPLING_FREQUENCY):
     return np.arccos(d/(fs*c*n))
 
@@ -142,18 +140,18 @@ def compute_angle(c, n, d, fs=SAMPLING_FREQUENCY):
 # plt.plot(gcc_phat(x1, x2))
 # plt.show()
 
-result_array = np.empty((N, N), None)
 all_combs = list(itertools.combinations(range(N), 2))
 for frame in range(int(np.floor(original_wav.shape[0]/FRAME_HOP) - 1)):
+    results_array = list()
     for comb in all_combs:
         sig1 = np.asarray(original_wav[(frame*FRAME_HOP):(frame*FRAME_HOP + FRAME_LEN), comb[0]])
         sig2 = np.asarray(original_wav[(frame*FRAME_HOP):(frame*FRAME_HOP + FRAME_LEN), comb[1]])
-        result_array[comb] = np.concatenate(gcc_phat(sig1, sig2)[0:mat.max_delay_matrix[comb]],
-                                            gcc_phat(sig2, sig1)[0:mat.max_delay_matrix[comb]])
+        res = gcc_phat(sig1, sig2)[0:mat.max_delay_matrix[comb]]
+        res = np.concatenate((res[::-1], res[1::]), axis=None)
+        results_array.append(res)
 
-    #fig = plt.figure()
-
-    #plt.plot(gcc_phat(sig2, sig1)[0:10])
-    # plt.show()
-    #plt.savefig('gcc_test_' + str(frame) + '.png')
-    #plt.close()
+        fig = plt.figure()
+        plt.plot(res)
+        # plt.show()
+        plt.savefig('gcc_test_' + str(frame) + '_' + str(comb) + '.png')
+        plt.close()
