@@ -5,13 +5,17 @@ sysargv = sys.argv[:]
 sys.argv = sys.argv[:1]
 
 from googleapiclient.discovery import build, MediaFileUpload
+from googleapiclient.http import MediaIoBaseDownload
 from httplib2 import Http
 from oauth2client import file, client, tools
 
+from dateutil import parser
+dt = parser.parse
+
 import hashlib
+import io
 import json
 import os
-import requests
 
 
 REPONAME = "[DASH][BIN]"
@@ -19,6 +23,7 @@ REPONAME = "[DASH][BIN]"
 # If modifying these scopes, delete the file token.json.
 SCOPES = 'https://www.googleapis.com/auth/drive'
 TOKEN = None
+
 
 def get_service():
     global TOKEN
@@ -95,12 +100,20 @@ def list_files():
 def diff(staged, items):
     unpulled, really_staged = [], []
     for fstaged in staged:
-        same_id = [x for x in items if x['id'] == fstaged['id']]
+        same_id = [x for x in items if x['name'] == fstaged['name']]
+        same_id = [x for x in sorted(same_id, key=lambda x:dt(x["modifiedTime"]), reverse=True)] 
         if same_id:
-            if same_id[0]['modifiedTime'] != fstaged['modifiedTime']:
+            if dt(same_id[0]['modifiedTime']) > dt(fstaged['modifiedTime']):
+                same_id[0]['hereTime'] = fstaged['modifiedTime']
                 unpulled.append(same_id[0])
+            elif dt(same_id[0]['modifiedTime']) < dt(fstaged['modifiedTime']):
+                pass  # unpulled.append(same_id[0])
         else:
             really_staged.append(fstaged)
+    for item in items:
+        if item['name'] not in [x['name'] for x in staged]:
+            item['hereTime'] = "-only remote-"
+            unpulled.append(item)
     return unpulled, really_staged
 
 
@@ -124,6 +137,29 @@ def push(fname):
         print("File {} is probably empty".format(fname))
 
 
+def pull(fileobj):
+    service = get_service()
+    request = service.files().get_media(fileId=fileobj['id'])
+    fh = io.BytesIO()
+    downloader = MediaIoBaseDownload(fh, request)
+    done = False
+    while not done:
+        status, done = downloader.next_chunk()
+        print("\rDownload {}%".format(status.progress() * 100), end="")
+    print("\n")
+    fh.seek(0)
+    hasher = hashlib.sha512()
+    hasher.update(fh.read())
+    hash = hasher.digest().hex()
+    fh.seek(0)
+    with open("./storage/" + fileobj["name"], "wb") as f: ## Excel File
+        f.write(fh.read())
+    return {"id": fileobj["id"],
+            "hash": hash,
+            "name": fileobj["name"],
+            "modifiedTime": fileobj["modifiedTime"]}
+
+
 if __name__ == '__main__':
     if len(sysargv) == 1:
         task = "status"
@@ -138,20 +174,25 @@ if __name__ == '__main__':
         quit()
     items = list_drive()
     staged, unstaged = list_files()
-    unpulled, staged = diff(staged, items)
+    unpulled, truly_staged = diff(staged, items)
     if task == "status":
         print("Drive status")
         print("Unpulled")
         for fileobj in unpulled:
-            print(">  ", fileobj["name"])
+            print(">  ", fileobj["name"], fileobj['modifiedTime'], fileobj['hereTime'])
         print("Staged")
-        for fileobj in staged:
+        for fileobj in truly_staged:
             print(">  ", fileobj["name"])
         print("Unstaged")
         for fileobj in unstaged:
             print(">  ", fileobj["name"])
     elif task == "pull":
         print("Drive pulling...")
+        for fileobj in unpulled:
+            fileobj = pull(fileobj)
+            staged.append(fileobj)
+        with open(".hashes", "w") as f:
+            json.dump(staged, f)
     elif task == "push":
         print("Drive pushing...")
         for fileobj in unstaged:

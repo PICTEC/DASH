@@ -103,6 +103,9 @@ def training(dataset, path):
     save_model(model, path)  # create postfilter object...
 
 
+imports = {"StopOnConvergence": StopOnConvergence}
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Trainer of DAE")
     parser.add_argument("-t", nargs=1, help='Synthetize input data using this model (otherwise use built-in simulator)')
