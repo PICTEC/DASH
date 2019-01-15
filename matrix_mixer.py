@@ -238,7 +238,7 @@ def main():
     positions = []
     if args.srcpos is not None:
         for src in args.srcpos:
-            positions = np.array(json.loads(src))
+            positions = list(np.array(json.loads(src)))
     else:
         positions = [np.random.random(3) - 0.5 for x in range(10)]
         positions = [x / np.sum(x) for x in positions]
