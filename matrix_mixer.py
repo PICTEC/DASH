@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
-# python matrix_mixer.py --pos '[[0, 0.1, 0.0],[0,0,0],[0,-0.1,0],[0.19,0.1,0],[0.19,0,0],[0.19, -0.1, 0.0]]' --src LibriSpeech/dev-clean --nexamples 15 --nsrc 1 --ndiff 1 --diff backgrounds --bgamp 0.5
+# Usage:
+# python matrix_mixer.py --pos '[[0, 0.1, 0.0],[0,0,0],[0,-0.1,0],[0.19,0.1,0],[0.19,0,0],[0.19, -0.1, 0.0]]' --src DAE-libri-cp --nexamples 3000 --nsrc 1 --ndiff 1 --diff bin/backgrounds --bgamp 1.2 --srcpos '[[0, 1.5, 1.5]]' --srclist 1
 
 import argparse
 import json
@@ -33,6 +34,7 @@ class Source:
     def duration(self):
         return len(self.signal)
 
+
 class Diffuse:
     def __init__(self, source, sr=16000, amp=1.0):
         if isinstance(source, str):
@@ -40,6 +42,7 @@ class Diffuse:
             self.signal = self.signal.T
         elif isinstance(source, np.ndarray):
             self.signal = source
+            self.sr = sr
         else:
             raise TypeError("Unsupported argument type {}".format(type(source)))
         self.signal = self.signal * amp
@@ -55,6 +58,7 @@ class Diffuse:
     @property
     def length(self):
         return self.signal.shape[1]
+
 
 class Matrix:
     def __init__(self, positions):
@@ -169,7 +173,9 @@ def by_list(sources, positions, diffuse, n_src, n_examples, target_fname,
     spec = []
     spec.append("Background amplification: {}, sources per recording: {}".format(
         bgamp, n_src))
-    for i in range(n_examples):
+    fnames = [target_fname.format(i) for i in range(n_examples)]
+    fnames = list(sorted(fnames))
+    for fname in fnames:
         scene = Scene()
         batch, sources = sources[:n_src], sources[n_src:]
         batch_pos = random.sample(positions, n_src)
@@ -181,9 +187,9 @@ def by_list(sources, positions, diffuse, n_src, n_examples, target_fname,
             diff = Diffuse(diff, amp=bgamp)
             scene.add_diffuse(diff)
         sound = scene.render(matrix)
-        save_sound(sound, target_fname.format(i), scene.sample_rate)
-        spec.append("{} with diffuse {} ".format(
-            ["{} @ {}".format(x, y) for x,y in zip(batch, batch_pos)],
+        save_sound(sound, fname, scene.sample_rate)
+        spec.append("{} : {} with diffuse {} ".format(fname,
+            ["{} @ {}".format(x, y) for x, y in zip(batch, batch_pos)],
             batch_diff))
     with open("spec.txt", "w") as f:
         f.write("\n".join(spec))
@@ -221,6 +227,7 @@ def main():
             sources.append(src)
         else:
             sources += list_sounds(src)
+    sources = list(sorted(sources))
     print(sources)
     diffuse = []
     if args.diff is None:
