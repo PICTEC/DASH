@@ -6,12 +6,13 @@ import itertools
 import matplotlib.pyplot as plt
 
 FRAME_LEN = 512
-FRAME_HOP = 256
+FRAME_HOP = 128
 SAMPLING_FREQUENCY = 16000
 SPEED_OF_SOUND = 340
-INIT_EST_VAD = 20
-MU_VAD = 0.95
-VAD_THRESH = 3
+INIT_EST_VAD = 25
+MU_VAD = 0.975
+MU_COV = 0.95
+VAD_THRESH = 4.8
 N = 6
 
 # TODO: turn VAD into class
@@ -89,42 +90,43 @@ frame = 1
 
 original_wav = sio.read('/home/kglowczewski/PICTEC/dash/dataset/0.wav')
 original_wav = np.asarray(original_wav[1])
-original_wav = original_wav / 2**16
+#original_wav = original_wav / 2**16
 
 # x1 = np.linspace(-np.pi, 3*np.pi, 512)
 # x2 = np.append(x1[10:512], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], axis=0)
+
 
 def VAD(x, mu=MU_VAD, init_est=INIT_EST_VAD):
     global frame
     global spec_avg
 
-    x_fft = sfft.rfft(x)
-    x_fft += 0.01
+    x_fft = np.abs(sfft.fft(x * np.hanning(len(x))) / len(x))[0:int(len(x)/2 + 1)]
+    x_fft += 0.0001
 
     # TODO: change order to speed up a little
-    if frame == 1:
+    if frame == 0:
         spec_avg = x_fft
-        return -6
+        return 5
     elif frame < init_est:
         spec_avg += x_fft
-        return -6
+        return 5
     elif frame == init_est:
         spec_avg /= init_est
-        return -6
+        return 5
     else:
-        whitened_spec = (x_fft/spec_avg) ^ 2
+        whitened_spec = (x_fft/spec_avg) ** 2
         spec_avg = spec_avg * mu + x_fft * (1 - mu)
         p = whitened_spec/np.sum(whitened_spec)
         return -np.sum(p*np.log(p))
 
 
 def gcc_phat(sigl, sigr, len=FRAME_LEN, fs=SAMPLING_FREQUENCY):
-    sigl_fft = sfft.rfft(sigl)
-    sigr_fft = sfft.rfft(sigr)
+    sigl_fft = sfft.fft(sigl)
+    sigr_fft = sfft.fft(sigr)
     sigr_fft_star = np.conj(sigr_fft)
     cc = sigl_fft*sigr_fft_star
     cc_phat = cc/abs(cc)
-    r_phat = sfft.irfft(cc_phat)
+    r_phat = sfft.ifft(cc_phat)
     return r_phat
 
 # n delay in samples from gcc
@@ -132,17 +134,35 @@ def gcc_phat(sigl, sigr, len=FRAME_LEN, fs=SAMPLING_FREQUENCY):
 # c speed of sound
 # d distance between mics
 
+
 def compute_angle(c, n, d, fs=SAMPLING_FREQUENCY):
     return np.arccos(d/(fs*c*n))
 
+
+def estimate_covariance_mat(signals_mat):
+    cov_mat = np.zeros((N, N, int(signals_mat.shape[0]/2 + 1)), np.complex64)
+    signals_mat_windowed = np.transpose(signals_mat) * np.hanning(signals_mat.shape[0])
+    fftd = sfft.fft(signals_mat_windowed, axis=1)
+    for k in range(0, int(fftd.shape[1]/2 + 1)):
+        cov_mat[:, :, k] = np.outer(np.transpose(fftd[:, k]), np.conjugate(fftd[:, k]))
+        cov_mat[:, :, k] = cov_mat[:, :, k] / np.trace(cov_mat[:, :, k])
+    return cov_mat
 
 # fig = plt.figure()
 # plt.plot(gcc_phat(x1, x2))
 # plt.show()
 
 all_combs = list(itertools.combinations(range(N), 2))
-for frame in range(int(np.floor(original_wav.shape[0]/FRAME_HOP) - 1)):
+vad_results = list()
+for frame in range(int(np.floor(original_wav.shape[0]/FRAME_HOP) - 3)):
     results_array = list()
+    vad_res = VAD(np.asarray(original_wav[(frame * FRAME_HOP):(frame * FRAME_HOP + FRAME_LEN), 0]))
+    vad_results.append(vad_res)
+    if frame == 0:
+        spat_cov_mat = estimate_covariance_mat(original_wav[(frame * FRAME_HOP):(frame * FRAME_HOP + FRAME_LEN), :])
+    if vad_res > VAD_THRESH:
+        spat_cov_mat = spat_cov_mat * MU_COV + estimate_covariance_mat(original_wav[(frame * FRAME_HOP):(frame * FRAME_HOP + FRAME_LEN), :]) * (1 - MU_COV)
+
     for comb in all_combs:
         sig1 = np.asarray(original_wav[(frame*FRAME_HOP):(frame*FRAME_HOP + FRAME_LEN), comb[0]])
         sig2 = np.asarray(original_wav[(frame*FRAME_HOP):(frame*FRAME_HOP + FRAME_LEN), comb[1]])
@@ -155,3 +175,20 @@ for frame in range(int(np.floor(original_wav.shape[0]/FRAME_HOP) - 1)):
         # plt.show()
         plt.savefig('gcc_test_' + str(frame) + '_' + str(comb) + '.png')
         plt.close()
+
+    result_fftd = np.zeros((sig1.shape[0]/2 + 1, N), np.complex64)
+    for chan in range(N):
+        result_fftd[:, chan] = sfft.fft(np.asarray(original_wav[(frame*FRAME_HOP):(frame*FRAME_HOP + FRAME_LEN), chan]))
+
+    if vad_res <= VAD_THRESH:
+        for k in range(sig1.shape[0]/2 + 1):
+            d_theta = np.zeros(N) # calculate steering vector based on combined gccs
+
+            spat_cov_mat_inv = np.linalg.inv(spat_cov_mat[:, :, k])
+            # TODO set proper multiplications below
+            w_theta = (spat_cov_mat_inv * d_theta)/(np.conjugate(d_theta) * spat_cov_mat_inv * d_theta)
+            result_fftd[k, :] = np.conjugate(w_theta) * result_fftd[k, :]
+
+fig = plt.figure()
+plt.plot(vad_results)
+plt.show()
