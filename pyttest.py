@@ -4,6 +4,7 @@ import scipy.fftpack as sfft
 import numpy as np
 import itertools
 import matplotlib.pyplot as plt
+import math
 
 FRAME_LEN = 512
 FRAME_HOP = 128
@@ -170,23 +171,26 @@ for frame in range(int(np.floor(original_wav.shape[0]/FRAME_HOP) - 3)):
         res = np.concatenate((res[::-1], res[1::]), axis=None)
         results_array.append(res)
 
-        fig = plt.figure()
-        plt.plot(res)
+        # fig = plt.figure()
+        # plt.plot(res)
         # plt.show()
-        plt.savefig('gcc_test_' + str(frame) + '_' + str(comb) + '.png')
-        plt.close()
+        # plt.savefig('gcc_test_' + str(frame) + '_' + str(comb) + '.png')
+        # plt.close()
 
-    result_fftd = np.zeros((sig1.shape[0]/2 + 1, N), np.complex64)
+    # TODO combined gccs needed here
+
+    result_fftd = np.zeros((int(sig1.shape[0]/2 + 1), N), np.complex64)
     for chan in range(N):
-        result_fftd[:, chan] = sfft.fft(np.asarray(original_wav[(frame*FRAME_HOP):(frame*FRAME_HOP + FRAME_LEN), chan]))
+        result_fftd[:, chan] = sfft.fft(np.asarray(original_wav[(frame*FRAME_HOP):(frame*FRAME_HOP + FRAME_LEN), chan]))[0:int(sig1.shape[0]/2 + 1)]
 
     if vad_res <= VAD_THRESH:
-        for k in range(sig1.shape[0]/2 + 1):
-            d_theta = np.zeros(N) # calculate steering vector based on combined gccs
+        for k in range(0, int(sig1.shape[0]/2 + 1)):
+            d_theta = np.zeros(N) # TODO calculate steering vector based on combined gccs
 
             spat_cov_mat_inv = np.linalg.inv(spat_cov_mat[:, :, k])
-            # TODO set proper multiplications below
-            w_theta = (spat_cov_mat_inv * d_theta)/(np.conjugate(d_theta) * spat_cov_mat_inv * d_theta)
+            # this should be right
+            w_theta = np.matmul(spat_cov_mat_inv, d_theta)/np.matmul(np.matmul(np.conjugate(d_theta), spat_cov_mat_inv),
+                                                                     d_theta)
             result_fftd[k, :] = np.conjugate(w_theta) * result_fftd[k, :]
 
 fig = plt.figure()
