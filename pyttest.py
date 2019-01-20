@@ -22,14 +22,20 @@ N = 6
 
 
 class matrix_class():
-    def __init__(self, n, f):
+    def __init__(self, n, f, *argv):
         self.mics = [None] * n
+        for i in range(n):
+            self.mics[i] = self.mic_in_matrix(argv[3*i], argv[3*i + 1], argv[3*i + 2])
         self.frequency = f
         self.angle_matrix = np.empty((n, n, 3), np.float32)
         self.distance_matrix = np.empty((n, n), np.float32)
         self.max_delay_matrix = np.empty((n, n), np.int)
         self.all_combs = list(itertools.combinations(range(n), 2))
         self.angles_list = list()
+        for comb in self.all_combs:
+            self.distance_matrix[comb] = self.compute_dist(comb[0], comb[1])
+            self.max_delay_matrix[comb] = int(self.calculate_max_delay(comb[0], comb[1]))
+        self.calc_all_angles()
 
     class mic_in_matrix():
         def __init__(self, x, y, z):
@@ -93,20 +99,14 @@ class matrix_class():
             self.angles_list.append(angles)
 
 
+mat = matrix_class(6, 16000,
+                   0.00000001, 0.00000001, 0.00000001,
+                   0.1, 0.00000001, 0.00000001,
+                   0.2, 0.00000001, 0.00000001,
+                   0.00000001, -0.19, 0.00000001,
+                   0.1, -0.19, 0.00000001,
+                   0.2, -0.19, 0.00000001)
 
-# TODO move this to class initialisation
-mat = matrix_class(N, 16000)
-mat.mics[0] = mat.mic_in_matrix(0.00000001, 0.00000001, 0.00000001)
-mat.mics[1] = mat.mic_in_matrix(0.1, 0.00000001, 0.00000001)
-mat.mics[2] = mat.mic_in_matrix(0.2, 0.00000001, 0.00000001)
-mat.mics[3] = mat.mic_in_matrix(0.00000001, -0.19, 0.00000001)
-mat.mics[4] = mat.mic_in_matrix(0.1, -0.19, 0.00000001)
-mat.mics[5] = mat.mic_in_matrix(0.2, -0.19, 0.00000001)
-all_combs = list(itertools.combinations(range(N), 2))
-
-for comb in all_combs:
-        mat.distance_matrix[comb] = mat.compute_dist(comb[0], comb[1])
-        mat.max_delay_matrix[comb] = int(mat.calculate_max_delay(comb[0], comb[1]))
 
 global spec_avg
 global frame
@@ -116,8 +116,8 @@ original_wav = sio.read('/home/kglowczewski/PICTEC/dash/dataset/0.wav')
 original_wav = np.asarray(original_wav[1])
 #original_wav = original_wav / 2**16
 
-# x1 = np.linspace(-np.pi, 3*np.pi, 512)
-# x2 = np.append(x1[10:512], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], axis=0)
+#x1 = np.linspace(-np.pi, 3*np.pi, 512)
+#x2 = np.append(x1[10:512], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], axis=0)
 
 
 def VAD(x, mu=MU_VAD, init_est=INIT_EST_VAD):
@@ -164,30 +164,31 @@ def estimate_covariance_mat(signals_mat):
     return cov_mat
 
 
-def combine_gccs(angles_list, results_array, combs):
+def combine_gccs(angles_list, results_array, combs_list):
     x = np.linspace(0, 180, 1080)
     y = np.zeros_like(x)
     combs_list = [0, 1, 5, 12, 13, 14]
-    for comb in combs_list:
-        distances = ((np.asarray(np.append(np.pi, angles_list[comb])) / np.pi * 180)[0:-1] -
-                     (np.asarray(np.append(np.pi, angles_list[comb])) / np.pi * 180)[1:])[0:int(np.ceil(len(angles_list[comb])/2))]
+    for combo in combs_list:
+        distances = ((np.asarray(np.append(np.pi, angles_list[combo])) / np.pi * 180)[0:-1] -
+                     (np.asarray(np.append(np.pi, angles_list[combo])) / np.pi * 180)[1:])[0:int(np.ceil(len(angles_list[combo])/2))]
         distances = np.append(distances, distances[0:-1][::-1])
-        for peak in range(0, len(angles_list[comb])):
-            mu = angles_list[comb][peak] / np.pi * 180
+        for peak in range(0, len(angles_list[combo])):
+            mu = angles_list[combo][peak] / np.pi * 180
             variance = distances[peak]
             sigma = math.sqrt(variance)
-
-            y += mlab.normpdf(x, mu, sigma) * results_array[comb][peak]
+            y += mlab.normpdf(x, mu, sigma) * results_array[combo][peak]
 
         plt.plot(x, y)
-        plt.show()
+
+    plt.show()
     doa = np.argmax(y)/(len(y)/180)
     return doa
 # fig = plt.figure()
 # plt.plot(gcc_phat(x1, x2))
 # plt.show()
 
-all_combs = list(itertools.combinations(range(N), 2))
+
+# all_combs = list(itertools.combinations(range(N), 2))
 vad_results = list()
 for frame in range(int(np.floor(original_wav.shape[0]/FRAME_HOP) - 3)):
     results_array = list()
@@ -198,7 +199,7 @@ for frame in range(int(np.floor(original_wav.shape[0]/FRAME_HOP) - 3)):
     if vad_res > VAD_THRESH:
         spat_cov_mat = spat_cov_mat * MU_COV + estimate_covariance_mat(original_wav[(frame * FRAME_HOP):(frame * FRAME_HOP + FRAME_LEN), :]) * (1 - MU_COV)
 
-    for comb in all_combs:
+    for comb in mat.all_combs:
         sig1 = np.asarray(original_wav[(frame*FRAME_HOP):(frame*FRAME_HOP + FRAME_LEN), comb[0]])
         sig2 = np.asarray(original_wav[(frame*FRAME_HOP):(frame*FRAME_HOP + FRAME_LEN), comb[1]])
         res = gcc_phat(sig1, sig2)[0:mat.max_delay_matrix[comb] + 1]
@@ -211,7 +212,7 @@ for frame in range(int(np.floor(original_wav.shape[0]/FRAME_HOP) - 3)):
         # plt.savefig('gcc_test_' + str(frame) + '_' + str(comb) + '.png')
         # plt.close()
 
-    DOA = combine_gccs(mat.angles_list, results_array, all_combs)
+    DOA = combine_gccs(mat.angles_list, results_array, mat.all_combs)
 
     result_fftd = np.zeros((int(sig1.shape[0]/2 + 1), N), np.complex64)
     for chan in range(N):
