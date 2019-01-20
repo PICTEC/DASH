@@ -4,6 +4,7 @@ import scipy.fftpack as sfft
 import numpy as np
 import itertools
 import matplotlib.pyplot as plt
+import matplotlib.mlab as mlab
 import math
 
 FRAME_LEN = 512
@@ -19,6 +20,7 @@ N = 6
 # TODO: turn VAD into class
 # TODO: turn gcc into class
 
+
 class matrix_class():
     def __init__(self, n, f):
         self.mics = [None] * n
@@ -26,6 +28,8 @@ class matrix_class():
         self.angle_matrix = np.empty((n, n, 3), np.float32)
         self.distance_matrix = np.empty((n, n), np.float32)
         self.max_delay_matrix = np.empty((n, n), np.int)
+        self.all_combs = list(itertools.combinations(range(n), 2))
+        self.angles_list = list()
 
     class mic_in_matrix():
         def __init__(self, x, y, z):
@@ -71,7 +75,26 @@ class matrix_class():
         dt = 1/self.frequency * SPEED_OF_SOUND
         return np.floor(self.distance_matrix[mic_1, mic_2]/dt)
 
+    # n delay in samples from gcc
+    # c speed of sound
+    # d distance between mics
 
+    def compute_angle(self, c, n, d):
+        return np.arccos((1/self.frequency * c * n) / d)
+
+    def calc_all_angles(self):
+        # dt = 1 / self.frequency * SPEED_OF_SOUND
+        for comb in self.all_combs:
+            angles = list()
+            max_d = self.max_delay_matrix[comb[0], comb[1]]
+            angle_indexes = list(range(-max_d, max_d + 1))
+            for ang in angle_indexes:
+                angles.append(self.compute_angle(340, ang, self.distance_matrix[comb[0], comb[1]]))
+            self.angles_list.append(angles)
+
+
+
+# TODO move this to class initialisation
 mat = matrix_class(N, 16000)
 mat.mics[0] = mat.mic_in_matrix(0.00000001, 0.00000001, 0.00000001)
 mat.mics[1] = mat.mic_in_matrix(0.1, 0.00000001, 0.00000001)
@@ -122,22 +145,13 @@ def VAD(x, mu=MU_VAD, init_est=INIT_EST_VAD):
 
 
 def gcc_phat(sigl, sigr, len=FRAME_LEN, fs=SAMPLING_FREQUENCY):
-    sigl_fft = sfft.fft(sigl)
-    sigr_fft = sfft.fft(sigr)
+    sigl_fft = sfft.rfft(sigl)
+    sigr_fft = sfft.rfft(sigr)
     sigr_fft_star = np.conj(sigr_fft)
     cc = sigl_fft*sigr_fft_star
     cc_phat = cc/abs(cc)
-    r_phat = sfft.ifft(cc_phat)
+    r_phat = sfft.irfft(cc_phat)
     return r_phat
-
-# n delay in samples from gcc
-# fs sampling frequency
-# c speed of sound
-# d distance between mics
-
-
-def compute_angle(c, n, d, fs=SAMPLING_FREQUENCY):
-    return np.arccos(d/(fs*c*n))
 
 
 def estimate_covariance_mat(signals_mat):
@@ -149,6 +163,26 @@ def estimate_covariance_mat(signals_mat):
         cov_mat[:, :, k] = cov_mat[:, :, k] / np.trace(cov_mat[:, :, k])
     return cov_mat
 
+
+def combine_gccs(angles_list, results_array, combs):
+    x = np.linspace(0, 180, 1080)
+    y = np.zeros_like(x)
+    combs_list = [0, 1, 5, 12, 13, 14]
+    for comb in combs_list:
+        distances = ((np.asarray(np.append(np.pi, angles_list[comb])) / np.pi * 180)[0:-1] -
+                     (np.asarray(np.append(np.pi, angles_list[comb])) / np.pi * 180)[1:])[0:int(np.ceil(len(angles_list[comb])/2))]
+        distances = np.append(distances, distances[0:-1][::-1])
+        for peak in range(0, len(angles_list[comb])):
+            mu = angles_list[comb][peak] / np.pi * 180
+            variance = distances[peak]
+            sigma = math.sqrt(variance)
+
+            y += mlab.normpdf(x, mu, sigma) * results_array[comb][peak]
+
+        plt.plot(x, y)
+        plt.show()
+    doa = np.argmax(y)/(len(y)/180)
+    return doa
 # fig = plt.figure()
 # plt.plot(gcc_phat(x1, x2))
 # plt.show()
@@ -167,7 +201,7 @@ for frame in range(int(np.floor(original_wav.shape[0]/FRAME_HOP) - 3)):
     for comb in all_combs:
         sig1 = np.asarray(original_wav[(frame*FRAME_HOP):(frame*FRAME_HOP + FRAME_LEN), comb[0]])
         sig2 = np.asarray(original_wav[(frame*FRAME_HOP):(frame*FRAME_HOP + FRAME_LEN), comb[1]])
-        res = gcc_phat(sig1, sig2)[0:mat.max_delay_matrix[comb]]
+        res = gcc_phat(sig1, sig2)[0:mat.max_delay_matrix[comb] + 1]
         res = np.concatenate((res[::-1], res[1::]), axis=None)
         results_array.append(res)
 
@@ -177,7 +211,7 @@ for frame in range(int(np.floor(original_wav.shape[0]/FRAME_HOP) - 3)):
         # plt.savefig('gcc_test_' + str(frame) + '_' + str(comb) + '.png')
         # plt.close()
 
-    # TODO combined gccs needed here
+    DOA = combine_gccs(mat.angles_list, results_array, all_combs)
 
     result_fftd = np.zeros((int(sig1.shape[0]/2 + 1), N), np.complex64)
     for chan in range(N):
