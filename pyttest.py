@@ -241,7 +241,8 @@ for frame in range(int(np.floor(original_wav.shape[0]/FRAME_HOP) - 3)):
                 np.matmul(np.conjugate(d_theta), spat_cov_mat_inv), d_theta)
             result_fftd[k, :] = np.conjugate(w_theta) * result_fftd[k, :]
 
-    sig_out = sfft.ifft(np.sum(result_fftd, axis=1))
+    sig_summed = np.sum(result_fftd, axis=1)
+    sig_out = sfft.ifft(np.concatenate(sig_summed[::-1], sig_summed[1::]))
 
 fig = plt.figure()
 plt.plot(vad_results)
