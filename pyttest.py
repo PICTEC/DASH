@@ -181,10 +181,10 @@ def combine_gccs(angles_list, results_array, combs_list):
             sigma = math.sqrt(variance)
             y += mlab.normpdf(x, mu, sigma) * results_array[combo][peak]
 
-    plt.plot(x, y)
-    plt.show()
-    plt.savefig('combinaton_test_' + str(frame) + '.png')
-    plt.close()
+    #plt.plot(x, y)
+    #plt.show()
+    #plt.savefig('combinaton_test_' + str(frame) + '.png')
+    #plt.close()
     doa = np.argmax(y)/(len(y)/180)
     return doa
 # fig = plt.figure()
@@ -225,24 +225,24 @@ for frame in range(int(np.floor(original_wav.shape[0]/FRAME_HOP) - 3)):
         result_fftd[:, chan] = sfft.fft(np.asarray(original_wav[(frame*FRAME_HOP):(frame*FRAME_HOP + FRAME_LEN), chan]))[0:int(sig1.shape[0]/2 + 1)]
 
     # if vad_res <= VAD_THRESH: # do we replace it with something?
-        for k in range(1, int(sig1.shape[0]/2 + 1)):
-            # this is VERY specific to current implementation, change it if combine_gccs changes
-            d_theta = [1,
-                       np.exp(-1j * 2 * np.pi * 0.1 / (k * mat.frequency / (FRAME_LEN / 2)) * np.cos(DOA)),
-                       np.exp(-1j * 2 * np.pi * 0.2 / (k * mat.frequency / (FRAME_LEN / 2)) * np.cos(DOA)),
-                       1,
-                       np.exp(-1j * 2 * np.pi * 0.1 / (k * mat.frequency / (FRAME_LEN / 2)) * np.cos(DOA)),
-                       np.exp(-1j * 2 * np.pi * 0.2 / (k * mat.frequency / (FRAME_LEN / 2)) * np.cos(DOA))]
+    for k in range(1, int(sig1.shape[0]/2 + 1)):
+        # this is VERY specific to current implementation, change it if combine_gccs changes
+        d_theta = [1,
+                   np.exp(-1j * 2 * np.pi * 0.1 / (k * mat.frequency / (FRAME_LEN / 2)) * np.cos(DOA)),
+                   np.exp(-1j * 2 * np.pi * 0.2 / (k * mat.frequency / (FRAME_LEN / 2)) * np.cos(DOA)),
+                   1,
+                   np.exp(-1j * 2 * np.pi * 0.1 / (k * mat.frequency / (FRAME_LEN / 2)) * np.cos(DOA)),
+                   np.exp(-1j * 2 * np.pi * 0.2 / (k * mat.frequency / (FRAME_LEN / 2)) * np.cos(DOA))]
             # d_theta = np.zeros(mat.mic)
 
-            spat_cov_mat_inv = np.linalg.inv(spat_cov_mat[:, :, k])
-            # this should be right
-            w_theta = np.matmul(spat_cov_mat_inv, d_theta)/np.matmul(
-                np.matmul(np.conjugate(d_theta), spat_cov_mat_inv), d_theta)
-            result_fftd[k, :] = np.conjugate(w_theta) * result_fftd[k, :]
+        spat_cov_mat_inv = np.linalg.inv(spat_cov_mat[:, :, k])
+        # this should be right
+        w_theta = np.matmul(spat_cov_mat_inv, d_theta)/np.matmul(
+            np.matmul(np.conjugate(d_theta), spat_cov_mat_inv), d_theta)
+        result_fftd[k, :] = np.conjugate(w_theta) * result_fftd[k, :]
 
     sig_summed = np.sum(result_fftd, axis=1)
-    sig_out = sfft.ifft(np.concatenate(sig_summed[::-1], sig_summed[1::]))
+    sig_out = sfft.ifft(np.concatenate((sig_summed[::-1], sig_summed[1::])))
 
 fig = plt.figure()
 plt.plot(vad_results)
