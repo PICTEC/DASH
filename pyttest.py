@@ -6,6 +6,7 @@ import itertools
 import matplotlib.pyplot as plt
 import matplotlib.mlab as mlab
 import math
+import time
 
 FRAME_LEN = 512
 FRAME_HOP = 128
@@ -18,18 +19,19 @@ VAD_THRESH = 4.8
 N = 6
 
 # TODO: turn VAD into class
-# TODO: turn gcc into class
+# TODO: add gcc into matrix_class
 
 
 class matrix_class():
     def __init__(self, n, f, *argv):
-        self.mics = [None] * n
-        for i in range(n):
+        self.num_of_mics = n
+        self.mics = [None] * self.num_of_mics
+        for i in range(self.num_of_mics):
             self.mics[i] = self.mic_in_matrix(argv[3*i], argv[3*i + 1], argv[3*i + 2])
         self.frequency = f
-        self.angle_matrix = np.empty((n, n, 3), np.float32)
-        self.distance_matrix = np.empty((n, n), np.float32)
-        self.max_delay_matrix = np.empty((n, n), np.int)
+        self.angle_matrix = np.empty((self.num_of_mics, self.num_of_mics, 3), np.float32)
+        self.distance_matrix = np.empty((self.num_of_mics, self.num_of_mics), np.float32)
+        self.max_delay_matrix = np.empty((self.num_of_mics, self.num_of_mics), np.int)
         self.all_combs = list(itertools.combinations(range(n), 2))
         self.angles_list = list()
         for comb in self.all_combs:
@@ -43,7 +45,7 @@ class matrix_class():
             self.y_loc = y
             self.z_loc = z
 
-# compute angle between mics around axis
+# compute angle between mics around axis # is this even necessary?
     def on_x(self, mic_1, mic_2):
         return np.arccos(((self.mics[mic_2].y_loc * self.mics[mic_1].y_loc) +
                           (self.mics[mic_2].z_loc * self.mics[mic_1].z_loc)) /
@@ -99,6 +101,7 @@ class matrix_class():
             self.angles_list.append(angles)
 
 
+# this defines matrix # 0.00000001 because 0 causes problems with /0
 mat = matrix_class(6, 16000,
                    0.00000001, 0.00000001, 0.00000001,
                    0.1, 0.00000001, 0.00000001,
@@ -164,23 +167,24 @@ def estimate_covariance_mat(signals_mat):
     return cov_mat
 
 
+# TODO make it so it uses ALL microphone pairs
 def combine_gccs(angles_list, results_array, combs_list):
     x = np.linspace(0, 180, 1080)
     y = np.zeros_like(x)
-    combs_list = [0, 1, 5, 12, 13, 14]
     for combo in combs_list:
         distances = ((np.asarray(np.append(np.pi, angles_list[combo])) / np.pi * 180)[0:-1] -
                      (np.asarray(np.append(np.pi, angles_list[combo])) / np.pi * 180)[1:])[0:int(np.ceil(len(angles_list[combo])/2))]
         distances = np.append(distances, distances[0:-1][::-1])
         for peak in range(0, len(angles_list[combo])):
             mu = angles_list[combo][peak] / np.pi * 180
-            variance = distances[peak]
+            variance = 1.5 * distances[peak]
             sigma = math.sqrt(variance)
             y += mlab.normpdf(x, mu, sigma) * results_array[combo][peak]
 
-        plt.plot(x, y)
-
+    plt.plot(x, y)
     plt.show()
+    plt.savefig('combinaton_test_' + str(frame) + '.png')
+    plt.close()
     doa = np.argmax(y)/(len(y)/180)
     return doa
 # fig = plt.figure()
@@ -190,6 +194,7 @@ def combine_gccs(angles_list, results_array, combs_list):
 
 # all_combs = list(itertools.combinations(range(N), 2))
 vad_results = list()
+DOA = 90
 for frame in range(int(np.floor(original_wav.shape[0]/FRAME_HOP) - 3)):
     results_array = list()
     vad_res = VAD(np.asarray(original_wav[(frame * FRAME_HOP):(frame * FRAME_HOP + FRAME_LEN), 0]))
@@ -212,21 +217,31 @@ for frame in range(int(np.floor(original_wav.shape[0]/FRAME_HOP) - 3)):
         # plt.savefig('gcc_test_' + str(frame) + '_' + str(comb) + '.png')
         # plt.close()
 
-    DOA = combine_gccs(mat.angles_list, results_array, mat.all_combs)
+    if vad_res <= VAD_THRESH:
+        DOA = combine_gccs(mat.angles_list, results_array, [0, 1, 5, 12, 13, 14]) / 180 * np.pi
 
     result_fftd = np.zeros((int(sig1.shape[0]/2 + 1), N), np.complex64)
     for chan in range(N):
         result_fftd[:, chan] = sfft.fft(np.asarray(original_wav[(frame*FRAME_HOP):(frame*FRAME_HOP + FRAME_LEN), chan]))[0:int(sig1.shape[0]/2 + 1)]
 
-    if vad_res <= VAD_THRESH:
-        for k in range(0, int(sig1.shape[0]/2 + 1)):
-            d_theta = np.zeros(N) # TODO calculate steering vector based on combined gccs
+    # if vad_res <= VAD_THRESH: # do we replace it with something?
+        for k in range(1, int(sig1.shape[0]/2 + 1)):
+            # this is VERY specific to current implementation, change it if combine_gccs changes
+            d_theta = [1,
+                       np.exp(-1j * 2 * np.pi * 0.1 / (k * mat.frequency / (FRAME_LEN / 2)) * np.cos(DOA)),
+                       np.exp(-1j * 2 * np.pi * 0.2 / (k * mat.frequency / (FRAME_LEN / 2)) * np.cos(DOA)),
+                       1,
+                       np.exp(-1j * 2 * np.pi * 0.1 / (k * mat.frequency / (FRAME_LEN / 2)) * np.cos(DOA)),
+                       np.exp(-1j * 2 * np.pi * 0.2 / (k * mat.frequency / (FRAME_LEN / 2)) * np.cos(DOA))]
+            # d_theta = np.zeros(mat.mic)
 
             spat_cov_mat_inv = np.linalg.inv(spat_cov_mat[:, :, k])
             # this should be right
-            w_theta = np.matmul(spat_cov_mat_inv, d_theta)/np.matmul(np.matmul(np.conjugate(d_theta), spat_cov_mat_inv),
-                                                                     d_theta)
+            w_theta = np.matmul(spat_cov_mat_inv, d_theta)/np.matmul(
+                np.matmul(np.conjugate(d_theta), spat_cov_mat_inv), d_theta)
             result_fftd[k, :] = np.conjugate(w_theta) * result_fftd[k, :]
+
+    sig_out = sfft.ifft(np.sum(result_fftd, axis=1))
 
 fig = plt.figure()
 plt.plot(vad_results)
