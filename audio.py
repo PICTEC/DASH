@@ -18,9 +18,10 @@ class PlayThread(threading.Thread):
         sample_rate (int): Sample rate [Hz] of playing
         channels (int): Number of channels to play
         id (int, optional): Index of output Device to use
-        record_to_file (bool, optional): Save
+        record_to_file (bool, optional): Save played output also to the file
+            stored in 'records/outputs/', default set to False
     """
-    def __init__(self, p, buffer, hop, sample_rate, channels, id=None, record_to_file=True):
+    def __init__(self, p, buffer, hop, sample_rate, channels, id=None, record_to_file=False):
         super(PlayThread, self).__init__()
 
         self.buffer = buffer
@@ -89,6 +90,10 @@ class ReadThread(threading.Thread):
         sample_rate (int): Sample rate [Hz] of recording
         channels (int): Number of channels to record
         id (int, optional): Index of input Device to use
+        from_file (str, optional): Path to the file from which read input, if not
+            provided, than it will be get input from input audio device
+        record_to_file (bool, optional): Save played output also to the file
+            stored in 'records/outputs/', default set to False
     """
     def __init__(self, p, buffer, hop, sample_rate, channels, id=None,
                  from_file=None, record_to_file=True):
@@ -103,14 +108,14 @@ class ReadThread(threading.Thread):
         self.record_to_file = record_to_file
         self.from_file = from_file
 
-        self.stream = p.open(format=pyaudio.paFloat32,
-                             channels=self.channels,
-                             rate=self.sample_rate,
-                             input=True,
-                             frames_per_buffer=self.hop,
-                             input_device_index=id)
-
-        if from_file is not None:
+        if from_file is None:
+            self.stream = p.open(format=pyaudio.paFloat32,
+                                 channels=self.channels,
+                                 rate=self.sample_rate,
+                                 input=True,
+                                 frames_per_buffer=self.hop,
+                                 input_device_index=id)
+        else:
             self.wf = wave.open(from_file, 'rb')
 
         if record_to_file:
@@ -127,7 +132,7 @@ class ReadThread(threading.Thread):
     def run(self):
         """Method representing the thread’s activity
 
-        Get data from microphones and put it to the buffer
+        Get data from microphones or from file and put it to the buffer
         """
         if self.from_file is None:
             while not self.stopped:
@@ -167,11 +172,14 @@ class Audio:
         sample_rate (int, optional): sample rate [Hz] of recording
         n_in_channels (int, optional): number of input channels
         n_out_channels (int, optional): number of output channels
-        input_device_id (int, optional):
-        output_device_id (int, optional):
-        input_from_file (str, optional):
-        save_input (bool, optional):
-        save_output (bool, optional):
+        input_device_id (int, optional): Index of input Device to use
+        output_device_id (int, optional): Index of input Device to use
+        input_from_file (str, optional): Path to the file from which read input,
+            if not provided, than it will be get input from input audio device
+        save_input (bool, optional): Save recorded input also to the file
+            stored in 'records/inputs/', default set to False
+        save_output (bool, optional): Save played output also to the file
+            stored in 'records/outputs/', default set to False
     """
 
     def __init__(self, buffer_size=1024, buffer_hop=128, sample_rate=16000,
