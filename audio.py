@@ -247,6 +247,9 @@ class Audio:
         self.in_thread.start()
         self.out_thread.start()
 
+    def __enter__(self):
+        return self
+
     def close(self):
         """Close all threads
         """
