@@ -6,7 +6,6 @@ from queue import Queue
 import threading
 import time
 import wave
-
 from os import makedirs
 
 class PlayThread(threading.Thread):
