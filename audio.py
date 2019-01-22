@@ -115,8 +115,15 @@ class ReadThread(threading.Thread):
                                  input=True,
                                  frames_per_buffer=self.hop,
                                  input_device_index=id)
+            self.input_dtype = np.float32
         else:
             self.wf = wave.open(from_file, 'rb')
+            if self.wf.getsampwidth() == 2:
+            	self.input_dtype = np.int16
+            elif self.wf.getsampwidth() == 4:
+            	self.input_dtype = np.float32
+            else:
+            	raise ValueError("Incorrect width of samples in the file")
 
         if record_to_file:
             try:
@@ -221,7 +228,7 @@ class Audio:
             np.array of the shape (n_in_channels, buffer_hop)
         """
         b = self.in_buffer.get()
-        arr = np.fromstring(b, dtype=float)
+        arr = np.fromstring(b, dtype=self.input_dtype)
         arr = np.reshape(arr, (self.n_in_channels, self.buffer_hop), order='F')
 
         return arr
