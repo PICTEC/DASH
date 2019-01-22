@@ -18,6 +18,7 @@ class PlayThread(threading.Thread):
         sample_rate (int): Sample rate [Hz] of playing
         channels (int): Number of channels to play
         id (int, optional): Index of output Device to use
+        record_to_file (bool, optional): Save
     """
     def __init__(self, p, buffer, hop, sample_rate, channels, id=None, record_to_file=True):
         super(PlayThread, self).__init__()
@@ -166,15 +167,27 @@ class Audio:
         sample_rate (int, optional): sample rate [Hz] of recording
         n_in_channels (int, optional): number of input channels
         n_out_channels (int, optional): number of output channels
+        input_device_id (int, optional):
+        output_device_id (int, optional):
+        input_from_file (str, optional):
+        save_input (bool, optional):
+        save_output (bool, optional):
     """
 
-    def __init__(self, buffer_size=1024, buffer_hop=128, sample_rate=16000, n_in_channels=6,
-                 n_out_channels=1):
+    def __init__(self, buffer_size=1024, buffer_hop=128, sample_rate=16000,
+                 n_in_channels=6, n_out_channels=1, input_device_id=None,
+                 output_device_id=None, input_from_file=None, save_input=False,
+                 save_output=False):
         self.buffer_size = buffer_size
         self.buffer_hop = buffer_hop
         self.sample_rate = sample_rate
         self.n_in_channels = n_in_channels
         self.n_out_channels = n_out_channels
+        self.input_device_id = input_device_id
+        self.output_device_id = output_device_id
+        self.input_from_file = input_from_file
+        self.save_input = save_input
+        self.save_output = save_output
 
         self.in_buffer = Queue(maxsize=buffer_size / buffer_hop)
         self.out_buffer = Queue(maxsize=buffer_size / buffer_hop)
@@ -205,8 +218,7 @@ class Audio:
 
         return arr
 
-    def open(self, input_device_id=None, output_device_id=None, input_from_file=None,
-             save_input=False, save_output=False):
+    def open(self):
         """Create and start threads
         """
         self.in_thread = ReadThread(p=self.p,
@@ -214,16 +226,16 @@ class Audio:
                                     hop=self.buffer_hop,
                                     sample_rate=self.sample_rate,
                                     channels=self.n_in_channels,
-                                    id=input_device_id,
-                                    from_file=input_from_file,
-                                    record_to_file=save_input)
+                                    id=self.input_device_id,
+                                    from_file=self.input_from_file,
+                                    record_to_file=self.save_input)
         self.out_thread = PlayThread(p=self.p,
                                      buffer=self.out_buffer,
                                      hop=self.buffer_hop,
                                      sample_rate=self.sample_rate,
                                      channels=self.n_out_channels,
-                                     id=output_device_id,
-                                     record_to_file=save_output)
+                                     id=self.output_device_id,
+                                     record_to_file=self.save_output)
         self.in_thread.start()
         self.out_thread.start()
 
