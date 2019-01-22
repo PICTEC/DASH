@@ -2,7 +2,6 @@
 
 import argparse
 import yaml
-import sys
 
 from audio import Audio
 from model import Model
@@ -32,6 +31,9 @@ def main(audio_config, post_filter_config, model_config):
 
 def get_args():
     parser = argparse.ArgumentParser()
+    parser.add_argument('-audio_config', help='path to audio config yaml file')
+    parser.add_argument('-post_filter_config', help='path to post filter config yaml file')
+    parser.add_argument('-model_config', help='path to model config yaml file')
     return parser.parse_args()
 
 if __name__ == "__main__":
@@ -40,25 +42,21 @@ if __name__ == "__main__":
     to the constructors of appropriate parts of the model. Most probably used for
     passing model.h5 filenames.
     """
-    #args = get_args()
-
-    audio_config = {}
-    post_filter_config = {"mode": "dae", "fname": "storage/model-dae.h5"}
-    model_config = {}
+    args = get_args()
     try:
-        with open(sys.argv[1], 'r') as file:
-            model_config = yaml.load(file)
-    except:
-        pass
-    try:
-        with open(sys.argv[2], 'r') as file:
-            post_filter_config = yaml.load(file)
-    except:
-        pass
-    try:
-        with open(sys.argv[3], 'r') as file:
+        with open(args.audio_config, 'r') as file:
             audio_config = yaml.load(file)
     except:
-        pass
+        audio_config = {}
+    try:
+        with open(args.post_filter_config, 'r') as file:
+            post_filter_config = yaml.load(file)
+    except:
+        post_filter_config = {"mode": "dae", "fname": "storage/model-dae.h5"}
+    try:
+        with open(args.model_config, 'r') as file:
+            audio_config = yaml.load(file)
+    except:
+        model_config = {}
 
     main(audio_config, post_filter_config, model_config)
