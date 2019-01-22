@@ -18,3 +18,12 @@ class PostFilter(BufferMixin([17, 257], np.complex64)):
         self.buffer.push(sample)
         result = self.model.predict(self.buffer.reshape([1, 17, 257]))
         return result[0, 8]
+
+
+
+class NullPostFilter:
+    def initialize(self):
+        pass
+
+    def process(self, sample):
+        return sample
