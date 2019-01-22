@@ -1,5 +1,6 @@
 from keras.models import load_model
 import numpy as np
+import tensorflow as tf
 
 from utils import BufferMixin
 
@@ -17,7 +18,7 @@ class ReferenceModelInterface:
 
 class DAEAcousticModel:
     def __init__(self, model_path, ratio=1.0):
-        self.model = load_model(model_path)
+        self.model = load_model(model_path, {"tf": tf})
 
     def __call__(self, sample):
         phaze = np.angle(sample)
@@ -34,7 +35,7 @@ class DolphinModel(BufferMixin([17, 257], np.complex64)):
     Acoustic model is a generative model that filters the speech so it sounds
     more naturally.
     """
-    def initialize(self, am_mode='dae', am_path='storage/model-dae.h5'):
+    def initialize(self, am_mode='dae', am_path='bin/am-dae.h5'):
         if am_mode == 'dae':
             self.acoustic_model = DAEAcousticModel(am_path)
 

@@ -23,7 +23,7 @@ def BufferMixin(buffer_size=[1, 257], dtype=np.float32):
                 self[-1] = sample
 
         def __init__(self, buffer_size=buffer_size, dtype=dtype):
-            self.buffer = Buffer(buffer_size, dtype)
+            self.buffer = BufferMixinClass.Buffer(buffer_size, dtype)
 
     return BufferMixinClass
 

@@ -5,7 +5,7 @@ import yaml
 
 from audio import Audio
 from model import DolphinModel
-from post_filter import PostFilter
+from post_filter import PostFilter, NullPostFilter
 from utils import fft, Remix
 
 def main(audio_config, post_filter_config, model_config):
@@ -14,7 +14,13 @@ def main(audio_config, post_filter_config, model_config):
     should be elsewhere, training should be done in other files.
     """
     audio = Audio(**audio_config)
-    post_filter = PostFilter(**post_filter_config)
+    mode = post_filter_config.pop("mode")
+    if mode == "dae":
+        post_filter = PostFilter(**post_filter_config)
+    elif mode == "null":
+        post_filter = NullPostFilter()
+    else:
+        raise ValueError("Wrong post filter")
     model = DolphinModel(**model_config)
     remixer = Remix()
     with audio:
@@ -52,7 +58,7 @@ if __name__ == "__main__":
         with open(args.post_filter_config, 'r') as file:
             post_filter_config = yaml.load(file)
     except:
-        post_filter_config = {"mode": "dae", "fname": "storage/model-dae.h5"}
+        post_filter_config = {"mode": "null", "fname": "storage/model-dae.h5"}
     try:
         with open(args.model_config, 'r') as file:
             audio_config = yaml.load(file)

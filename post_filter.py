@@ -23,7 +23,6 @@ class PostFilter(BufferMixin([17, 257], np.complex64)):
         return result[0, 8]
 
 
-
 class NullPostFilter:
     def initialize(self):
         pass
