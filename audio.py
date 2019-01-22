@@ -149,7 +149,7 @@ class ReadThread(threading.Thread):
                     self.f.writeframesraw(input)
         else:
             while not self.stopped:
-                input = self.wf.readframes(2 * self.hop)
+                input = self.wf.readframes(self.hop)
                 self.buffer.put(input)
 
 
@@ -210,6 +210,7 @@ class Audio:
         self.p = pyaudio.PyAudio()
         self.in_thread = None
         self.out_thread = None
+        self.input_dtype = None
 
     def write_to_output(self, arr):
         """Decode values and pass it to the buffer
@@ -253,6 +254,7 @@ class Audio:
                                      channels=self.n_out_channels,
                                      id=self.output_device_id,
                                      record_to_file=self.save_output)
+        self.input_dtype = self.in_thread.input_dtype
         self.in_thread.start()
         self.out_thread.start()
 
