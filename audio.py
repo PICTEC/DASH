@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-import threading
-from queue import Queue
-import pyaudio
-import numpy as np
-from time import sleep
 
-class play_thread(threading.Thread):
+import numpy as np
+import pyaudio
+from queue import Queue
+import threading
+import time
+import wave
+
+class PlayThread(threading.Thread):
     """Thread which pass data stored in the buffer to the speakers
 
     Args:
@@ -16,8 +18,8 @@ class play_thread(threading.Thread):
         channels (int): Number of channels to play
         id (int, optional): Index of output Device to use
     """
-    def __init__(self, p, buffer, hop, sample_rate, channels, id=None):
-        super(play_thread, self).__init__()
+    def __init__(self, p, buffer, hop, sample_rate, channels, id=None, record_to_file=True):
+        super(PlayThread, self).__init__()
 
         self.buffer = buffer
         self.hop = hop
@@ -25,6 +27,7 @@ class play_thread(threading.Thread):
         self.channels = channels
         self.daemon = True
         self.stopped = False
+        self.record_to_file = record_to_file
 
         self.stream = p.open(format=pyaudio.paFloat32,
                              channels=self.channels,
@@ -32,6 +35,13 @@ class play_thread(threading.Thread):
                              output=True,
                              frames_per_buffer=self.hop,
                              output_device_index=id)
+
+        if record_to_file:
+            file_name = 'records/outputs/' + time.asctime() + '_out.wav'
+            self.f = wave.open(file_name, 'w')
+            self.f.setnchannels(channels)
+            self.f.setsampwidth(4)
+            self.f.setframerate(sample_rate)
 
     def run(self):
         """Method representing the thread’s activity
@@ -44,7 +54,10 @@ class play_thread(threading.Thread):
 
         while not self.stopped:
             if not self.buffer.empty():
-                self.stream.write(frames=self.buffer.get())
+                frames = self.buffer.get()
+                self.stream.write(frames=frames)
+                if self.record_to_file:
+                    self.f.writeframesraw(frames)
 
     def stop(self):
         """Stop thread, play what's left in the buffer and close stream
@@ -55,9 +68,11 @@ class play_thread(threading.Thread):
             self.stream.write(frames=self.buffer.get())
 
         self.stream.close()
+        self.f.writeframes(b'')
+        self.f.close()
 
 
-class read_thread(threading.Thread):
+class ReadThread(threading.Thread):
     """Thread which read data from microphones and pass it to the buffer
 
     Args:
@@ -68,8 +83,8 @@ class read_thread(threading.Thread):
         channels (int): Number of channels to record
         id (int, optional): Index of input Device to use
     """
-    def __init__(self, p, buffer, hop, sample_rate, channels, id=None):
-        super(read_thread, self).__init__()
+    def __init__(self, p, buffer, hop, sample_rate, channels, id=None, record_to_file=True):
+        super(ReadThread, self).__init__()
 
         self.buffer = buffer
         self.hop = hop
@@ -77,6 +92,7 @@ class read_thread(threading.Thread):
         self.channels = channels
         self.daemon = True
         self.stopped = False
+        self.record_to_file = record_to_file
 
         self.stream = p.open(format=pyaudio.paFloat32,
                              channels=self.channels,
@@ -84,7 +100,13 @@ class read_thread(threading.Thread):
                              input=True,
                              frames_per_buffer=self.hop,
                              input_device_index=id)
-        print(self.stream)
+
+        if record_to_file:
+            file_name = 'records/inputs/' + time.asctime() + '_out.wav'
+            self.f = wave.open(file_name, 'w')
+            self.f.setnchannels(channels)
+            self.f.setsampwidth(4)
+            self.f.setframerate(sample_rate)
 
     def run(self):
         """Method representing the thread’s activity
@@ -92,15 +114,19 @@ class read_thread(threading.Thread):
         Get data from microphones and put it to the buffer
         """
         while not self.stopped:
-            input = self.stream.read(2*self.hop)
+            input = self.stream.read(2 * self.hop)
             self.buffer.put(input)
+            if self.record_to_file:
+                self.f.writeframesraw(input)
 
     def stop(self):
         """Stop thread and close stream
         """
         self.stopped = True
-        sleep(self.hop/self.sample_rate)
+        time.sleep(self.hop / self.sample_rate)
         self.stream.close()
+        self.f.writeframes(b'')
+        self.f.close()
 
 class Audio:
     """Class to record and play data
@@ -127,8 +153,8 @@ class Audio:
         self.n_in_channels = n_in_channels
         self.n_out_channels = n_out_channels
 
-        self.in_buffer = Queue(maxsize=buffer_size/buffer_hop)
-        self.out_buffer = Queue(maxsize=buffer_size/buffer_hop)
+        self.in_buffer = Queue(maxsize=buffer_size / buffer_hop)
+        self.out_buffer = Queue(maxsize=buffer_size / buffer_hop)
 
         self.p = pyaudio.PyAudio()
         self.in_thread = None
@@ -140,7 +166,7 @@ class Audio:
         Args:
             arr (np.array of shape(n_out_channels, buffer_hop)): Frames to be played
         """
-        assert arr.shape == (self.n_out_channels, self.buffer_hop), 'incorect shape of output'
+        #assert arr.shape == (self.n_out_channels, self.buffer_hop), 'incorect shape of output'
         interleaved = arr.flatten('F')
         self.out_buffer.put(interleaved.tobytes())
 
@@ -159,18 +185,18 @@ class Audio:
     def open(self, input_device_id=None, output_device_id=None):
         """Create and start threads
         """
-        self.in_thread = read_thread(p=self.p,
-                                     buffer=self.in_buffer,
+        self.in_thread = ReadThread(p=self.p,
+                                    buffer=self.in_buffer,
+                                    hop=self.buffer_hop,
+                                    sample_rate=self.sample_rate,
+                                    channels=self.n_in_channels,
+                                    id=input_device_id)
+        self.out_thread = PlayThread(p=self.p,
+                                     buffer=self.out_buffer,
                                      hop=self.buffer_hop,
                                      sample_rate=self.sample_rate,
-                                     channels=self.n_in_channels,
-                                     id=input_device_id)
-        self.out_thread = play_thread(p=self.p,
-                                      buffer=self.out_buffer,
-                                      hop=self.buffer_hop,
-                                      sample_rate=self.sample_rate,
-                                      channels=self.n_out_channels,
-                                      id=output_device_id)
+                                     channels=self.n_out_channels,
+                                     id=output_device_id)
         self.in_thread.start()
         self.out_thread.start()
 
@@ -193,7 +219,7 @@ if __name__ == "__main__":
     """
     audio = Audio(n_in_channels=1, n_out_channels=1)
     audio.open()
-    for i in range(1000):
+    for _ in range(1000):
         input = audio.get_input()
         audio.write_to_output(input)
     audio.close()
