@@ -5,11 +5,10 @@ from keras.layers import Input, Lambda, LeakyReLU, Conv2D, TimeDistributed, \
     Dense, Flatten
 from keras.models import Model
 from keras.optimizers import Adam
-import librosa
 import numpy as np
 import random
 
-from utils import list_sounds, open_sound
+from utils import list_sounds, open_sound, stft
 
 
 def mk_model():
@@ -70,7 +69,7 @@ class Simulator:
         for ix, fname in enumerate(fnames):
             sr, rec = open_sound(fname)
             assert sr == 16000
-            rec = np.log(2e-12 + np.abs(librosa.stft(rec.astype(np.float32) / (2**15), n_fft=512, hop_length=128).T[:max_len]) ** 2)
+            rec = np.log(2e-12 + np.abs(stft(rec.astype(np.float32) / (2**15), n_fft=512, hop_length=128).T[:max_len]) ** 2)
             self.X[ix, :len(rec)] = self.mask(rec)
             self.Y[ix, :len(rec)] = rec
         return ([self.X[:self.train], self.Y[:self.train]],

@@ -39,6 +39,22 @@ class Remix:
         return self.buffer[:128].copy()
 
 
+def stft(y, n_fft=512, hop_length=128, window=np.hamming):
+    if window is not None:
+        win_val = window(n_fft)
+    else:
+        win_val = np.ones(n_fft, np.float32)
+    how_many = (len(y) - n_fft) // hop_length
+    fft_size = n_fft // 2 + 1
+    stft_v = np.zeros([fft_size, how_many], np.complex64)
+    for i in range(how_many):
+        win = y[hop_length * i : hop_length * i + n_fft]
+        win = win * win_val
+        win = np.fft.rfft(win)
+        stft_v[:, i] = win
+    return stft_v
+
+
 def fft(x):
     return np.hamming(512)**0.5 * np.fft.rfft(x)
 
