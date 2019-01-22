@@ -10,8 +10,11 @@ class PostFilter(BufferMixin([17, 257], np.complex64)):
     _all_imports = {}
     _all_imports.update(dae.imports)
 
-    def initialize(self, mode='dae', fname=None):
+    def __init__(self, mode='dae', fname=None):
         self.model = load_model(fname, self._all_imports)
+
+    def initialize(self):
+        pass
 
     # TODO: this given an ENORMOUS shift in buffers - to reimplement
     def process(self, sample):
