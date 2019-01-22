@@ -119,7 +119,7 @@ class ReadThread(threading.Thread):
         else:
             self.wf = wave.open(from_file, 'rb')
             if self.wf.getsampwidth() == 2:
-            	self.input_dtype = np.int16
+            	self.input_dtype = np.int16
             elif self.wf.getsampwidth() == 4:
             	self.input_dtype = np.float32
             else:
@@ -229,6 +229,8 @@ class Audio:
         """
         b = self.in_buffer.get()
         arr = np.fromstring(b, dtype=self.input_dtype)
+        if self.input_dtype == np.int32:
+            arr = arr.astype(np.float32) / 2**15
         arr = np.reshape(arr, (self.n_in_channels, self.buffer_hop), order='F')
 
         return arr
