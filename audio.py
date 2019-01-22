@@ -7,6 +7,8 @@ import threading
 import time
 import wave
 
+from os import makedirs
+
 class PlayThread(threading.Thread):
     """Thread which pass data stored in the buffer to the speakers
 
@@ -37,6 +39,10 @@ class PlayThread(threading.Thread):
                              output_device_index=id)
 
         if record_to_file:
+            try:
+                makedirs('records/outputs')
+            except:
+                pass
             file_name = 'records/outputs/' + time.asctime() + '_out.wav'
             self.f = wave.open(file_name, 'w')
             self.f.setnchannels(channels)
@@ -108,7 +114,11 @@ class ReadThread(threading.Thread):
             self.wf = wave.open(from_file, 'rb')
 
         if record_to_file:
-            file_name = 'records/inputs/' + time.asctime() + '_out.wav'
+            try:
+                makedirs('records/inputs')
+            except:
+                pass
+            file_name = 'records/inputs/' + time.asctime() + '_in.wav'
             self.f = wave.open(file_name, 'w')
             self.f.setnchannels(channels)
             self.f.setsampwidth(4)
