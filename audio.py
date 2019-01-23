@@ -34,12 +34,13 @@ class PlayThread(threading.Thread):
         self.record_to_file = record_to_file
         self.play = play
 
-        self.stream = p.open(format=pyaudio.paFloat32,
-                             channels=self.channels,
-                             rate=self.sample_rate,
-                             output=True,
-                             frames_per_buffer=self.hop,
-                             output_device_index=id)
+        if play:
+            self.stream = p.open(format=pyaudio.paFloat32,
+                                 channels=self.channels,
+                                 rate=self.sample_rate,
+                                 output=True,
+                                 frames_per_buffer=self.hop,
+                                 output_device_index=id)
 
         if record_to_file:
             try:
@@ -74,10 +75,10 @@ class PlayThread(threading.Thread):
         """
         self.stopped = True
 
-        while not self.buffer.empty():
-            self.stream.write(frames=self.buffer.get())
-
-        self.stream.close()
+        if self.play:
+            while not self.buffer.empty():
+                self.stream.write(frames=self.buffer.get())
+            self.stream.close()
         if self.record_to_file:
             self.f.writeframes(b'')
             self.f.close()
