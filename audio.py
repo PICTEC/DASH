@@ -239,7 +239,7 @@ class Audio:
         b = self.in_queue.get()
         arr = np.fromstring(b, dtype=self.input_dtype)
 
-        if self.input_dtype == np.int32:
+        if self.input_dtype == np.int16:
             arr = arr.astype(np.float32) / 2**15
         arr = np.reshape(arr, (self.buffer_hop, self.n_in_channels))
         self.buffer = np.roll(self.buffer, -self.buffer_hop, axis=0)
