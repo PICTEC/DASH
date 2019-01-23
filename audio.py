@@ -21,7 +21,8 @@ class PlayThread(threading.Thread):
         record_to_file (bool, optional): Save played output also to the file
             stored in 'records/outputs/', default set to False
     """
-    def __init__(self, p, buffer, hop, sample_rate, channels, id=None, record_to_file=False):
+    def __init__(self, p, buffer, hop, sample_rate, channels, id=None, play=True,
+                 record_to_file=False):
         super(PlayThread, self).__init__()
 
         self.buffer = buffer
@@ -31,6 +32,7 @@ class PlayThread(threading.Thread):
         self.daemon = True
         self.stopped = False
         self.record_to_file = record_to_file
+        self.play = play
 
         self.stream = p.open(format=pyaudio.paFloat32,
                              channels=self.channels,
@@ -62,7 +64,8 @@ class PlayThread(threading.Thread):
         while not self.stopped:
             if not self.buffer.empty():
                 frames = self.buffer.get()
-                self.stream.write(frames=frames)
+                if self.play:
+                    self.stream.write(frames=frames)
                 if self.record_to_file:
                     self.f.writeframesraw(frames)
 
@@ -191,8 +194,8 @@ class Audio:
 
     def __init__(self, buffer_size=1024, buffer_hop=128, sample_rate=16000,
                  n_in_channels=6, n_out_channels=1, input_device_id=None,
-                 output_device_id=None, input_from_file=None, save_input=False,
-                 save_output=False):
+                 output_device_id=None, input_from_file=None, play_output=True,
+                 save_input=False, save_output=False):
         self.buffer_size = buffer_size
         self.buffer_hop = buffer_hop
         self.sample_rate = sample_rate
@@ -201,6 +204,7 @@ class Audio:
         self.input_device_id = input_device_id
         self.output_device_id = output_device_id
         self.input_from_file = input_from_file
+        self.play_output = play_output
         self.save_input = save_input
         self.save_output = save_output
 
@@ -259,6 +263,7 @@ class Audio:
                                      sample_rate=self.sample_rate,
                                      channels=self.n_out_channels,
                                      id=self.output_device_id,
+                                     play=self.play_output,
                                      record_to_file=self.save_output)
         self.input_dtype = self.in_thread.input_dtype
         self.in_thread.start()
