@@ -56,7 +56,7 @@ def stft(y, n_fft=512, hop_length=128, window=np.hamming):
 
 
 def fft(x):
-    return np.hamming(512)**0.5 * np.fft.rfft(x)
+    return np.stack([np.fft.rfft(np.hamming(x.shape[0])**0.5 * x[:, ch]) for ch in range(x.shape[1])], axis=1)
 
 
 def ifft(x):
