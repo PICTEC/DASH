@@ -143,7 +143,7 @@ class ReadThread(threading.Thread):
         """
         if self.from_file is None:
             while not self.stopped:
-                input = self.stream.read(2 * self.hop)
+                input = self.stream.read(self.hop)
                 self.buffer.put(input)
                 if self.record_to_file:
                     self.f.writeframesraw(input)
@@ -204,8 +204,11 @@ class Audio:
         self.save_input = save_input
         self.save_output = save_output
 
-        self.in_buffer = Queue(maxsize=buffer_size / buffer_hop)
-        self.out_buffer = Queue(maxsize=buffer_size / buffer_hop)
+        self.in_queue = Queue(maxsize=buffer_size / buffer_hop)
+        self.out_queue = Queue(maxsize=buffer_size / buffer_hop)
+        self.buffer = np.zeros((buffer_size, n_in_channels), dtype=np.float32)
+
+        self.shift = self.buffer_size-self.buffer_hop
 
         self.p = pyaudio.PyAudio()
         self.in_thread = None
@@ -219,8 +222,8 @@ class Audio:
             arr (np.array of shape(n_out_channels, buffer_hop)): Frames to be played
         """
         #assert arr.shape == (self.n_out_channels, self.buffer_hop), 'incorect shape of output'
-        interleaved = arr.flatten('F')
-        self.out_buffer.put(interleaved.tobytes())
+        interleaved = arr.flatten()
+        self.out_queue.put(interleaved.tobytes())
 
     def get_input(self):
         """Get values from the buffer, encode it and return
@@ -228,19 +231,22 @@ class Audio:
         Retruns:
             np.array of the shape (n_in_channels, buffer_hop)
         """
-        b = self.in_buffer.get()
-        arr = np.fromstring(b, dtype=self.input_dtype)
+        b = self.in_queue.get()
+        arr = np.fromstring(b, dtype=np.float32)
+
         if self.input_dtype == np.int32:
             arr = arr.astype(np.float32) / 2**15
-        arr = np.reshape(arr, (self.n_in_channels, self.buffer_hop), order='F')
+        arr = np.reshape(arr, (self.buffer_hop, self.n_in_channels))
+        self.buffer = np.roll(self.buffer, -self.buffer_hop, axis=0)
+        self.buffer[-self.buffer_hop:,:] = arr
 
-        return arr
+        return np.copy(self.buffer)
 
     def open(self):
         """Create and start threads
         """
         self.in_thread = ReadThread(p=self.p,
-                                    buffer=self.in_buffer,
+                                    buffer=self.in_queue,
                                     hop=self.buffer_hop,
                                     sample_rate=self.sample_rate,
                                     channels=self.n_in_channels,
@@ -248,7 +254,7 @@ class Audio:
                                     from_file=self.input_from_file,
                                     record_to_file=self.save_input)
         self.out_thread = PlayThread(p=self.p,
-                                     buffer=self.out_buffer,
+                                     buffer=self.out_queue,
                                      hop=self.buffer_hop,
                                      sample_rate=self.sample_rate,
                                      channels=self.n_out_channels,
@@ -279,10 +285,9 @@ if __name__ == "__main__":
     """
     Simple test of whether the class works - a single-channel loopback recording
     """
-    audio = Audio(n_in_channels=1, n_out_channels=1)
-    audio.open(input_from_file='records/inputs/Tue Jan 22 10:28:26 2019_out.wav',
-               save_output=True)
+    audio = Audio(n_in_channels=2, n_out_channels=1)
+    audio.open()
     for _ in range(1000):
         input = audio.get_input()
-        audio.write_to_output(input)
+        audio.write_to_output(input[:128,1])
     audio.close()
