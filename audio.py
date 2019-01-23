@@ -237,7 +237,7 @@ class Audio:
             np.array of the shape (n_in_channels, buffer_hop)
         """
         b = self.in_queue.get()
-        arr = np.fromstring(b, dtype=np.float32)
+        arr = np.fromstring(b, dtype=self.input_dtype)
 
         if self.input_dtype == np.int32:
             arr = arr.astype(np.float32) / 2**15
