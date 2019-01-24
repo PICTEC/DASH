@@ -22,18 +22,19 @@ def main(audio_config, post_filter_config, model_config):
     else:
         raise ValueError("Wrong post filter")
     model = DolphinModel(**model_config)
-    remixer = Remix()
+    remixer = Remix(buffer_size=audio.buffer_size, buffer_hop=audio.buffer_hop,
+                    channels=audio.n_out_channels)
     with audio:
         audio.open()
         model.initialize()
         post_filter.initialize()
         while True:
             sample = audio.get_input()
-            sample = fft(sample)
+            sample = fft(sample, audio.buffer_size, audio.n_in_channels)
             sample = model.process(sample)
             sample = post_filter.process(sample)
             sample = remixer.process(sample)
-            audio.write_to_output(sample[0,:])
+            audio.write_to_output(sample)
 
 def get_args():
     parser = argparse.ArgumentParser()
