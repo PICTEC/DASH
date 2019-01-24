@@ -29,14 +29,23 @@ def BufferMixin(buffer_size=[1, 257], dtype=np.float32):
 
 
 class Remix:
-    def __init__(self):
-        self.buffer = np.zeros(512, np.float32)
+    def __init__(self, buffer_size, buffer_hop, channels):
+        self.buffer_size = buffer_size
+        self.buffer_hop = buffer_hop
+        self.channels = channels
+        self.buffer = np.zeros((buffer_size, channels), np.float32)
+
+        self.overlaps = self.buffer_size / self.buffer_hop
 
     def process(self, sample):
-        self.buffer[:(512-128)] = self.buffer[128:]
-        self.buffer[(512-128):] = 0
-        self.buffer += ifft(sample)
-        return self.buffer[:128].copy()
+        self.buffer = np.roll(self.buffer, -self.buffer_hop, axis=0)
+        self.buffer[-self.buffer_hop:,:] = 0
+        r = ifft(sample, self.buffer_size, self.channels)
+        if self.channels == 1:
+            self.buffer[:,0] += r
+        else:
+            self.buffer += r
+        return self.buffer[:self.buffer_hop].copy() / self.overlaps
 
 
 def stft(y, n_fft=512, hop_length=128, window=np.hamming):
@@ -55,12 +64,22 @@ def stft(y, n_fft=512, hop_length=128, window=np.hamming):
     return stft_v
 
 
-def fft(x):
-    return np.stack([np.fft.rfft(np.hamming(x.shape[0])**0.5 * x[:, ch]) for ch in range(x.shape[1])], axis=1)
+def fft(x, frame_width, channels):
+    out = np.zeros((int((frame_width/2)+1), channels))
+    for ch in range(channels):
+        out[:,ch] = np.fft.rfft(np.hamming(frame_width)**0.5 * x[:,ch])
+    return out
 
 
-def ifft(x):
-    return np.hamming(512)**0.5 * np.fft.irfft(x)
+def ifft(x, frame_width, channels):
+    out = np.zeros((frame_width, channels), dtype=np.float32)
+    print(channels)
+    if channels == 1:
+        out =  np.hamming(frame_width)**0.5* np.fft.irfft(x)
+    else:
+        for ch in range(channels):
+            out[:,ch] = np.hamming(frame_width)**0.5 *np.fft.irfft(x[:,ch])
+    return out
 
 
 def open_sound(fname):
