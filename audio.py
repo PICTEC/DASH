@@ -162,8 +162,11 @@ class ReadThread(threading.Thread):
         """
         self.stopped = True
         time.sleep(self.hop / self.sample_rate)
-        self.stream.stop_stream()
-        self.stream.close()
+        if self.from_file is None:
+            self.stream.stop_stream()
+            self.stream.close()
+        else:
+            self.wf.close()
         if self.record_to_file:
             self.f.writeframes(b'')
             self.f.close()
@@ -241,7 +244,10 @@ class Audio:
 
         if self.input_dtype == np.int16:
             arr = arr.astype(np.float32) / 2**15
-        arr = np.reshape(arr, (self.buffer_hop, self.n_in_channels))
+        try:
+            arr = np.reshape(arr, (self.buffer_hop, self.n_in_channels))
+        except:
+            raise RuntimeError('The recording has ended')
         self.buffer = np.roll(self.buffer, -self.buffer_hop, axis=0)
         self.buffer[-self.buffer_hop:,:] = arr
 
