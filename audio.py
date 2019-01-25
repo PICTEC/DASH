@@ -18,6 +18,7 @@ class PlayThread(threading.Thread):
         sample_rate (int): Sample rate [Hz] of playing
         channels (int): Number of channels to play
         id (int, optional): Index of output Device to use
+        play (bool, optional): Play output to the speakers
         record_to_file (bool, optional): Save played output also to the file
             stored in 'records/outputs/', default set to False
     """
@@ -75,14 +76,17 @@ class PlayThread(threading.Thread):
         """
         self.stopped = True
 
+        while not self.buffer.empty():
+            frames = self.buffer.get()
+            if self.play:
+                self.stream.write(frames)
+            if self.record_to_file:
+                self.f.writeframesraw(frames)
         if self.play:
-            while not self.buffer.empty():
-                self.stream.write(frames=self.buffer.get())
             self.stream.close()
         if self.record_to_file:
             self.f.writeframes(b'')
             self.f.close()
-
 
 class ReadThread(threading.Thread):
     """Thread which read data from microphones and pass it to the buffer
@@ -156,7 +160,6 @@ class ReadThread(threading.Thread):
                 input = self.wf.readframes(self.hop)
                 self.buffer.put(input)
 
-
     def stop(self):
         """Stop thread and close stream
         """
@@ -190,6 +193,7 @@ class Audio:
         output_device_id (int, optional): Index of input Device to use
         input_from_file (str, optional): Path to the file from which read input,
             if not provided, than it will be get input from input audio device
+        play_output (bool, optional): Play output to the speakers
         save_input (bool, optional): Save recorded input also to the file
             stored in 'records/inputs/', default set to False
         save_output (bool, optional): Save played output also to the file
@@ -216,8 +220,6 @@ class Audio:
         self.out_queue = Queue(maxsize=buffer_size / buffer_hop)
         self.buffer = np.zeros((buffer_size, n_in_channels), dtype=np.float32)
 
-        self.shift = self.buffer_size-self.buffer_hop
-
         self.p = pyaudio.PyAudio()
         self.in_thread = None
         self.out_thread = None
@@ -227,9 +229,9 @@ class Audio:
         """Decode values and pass it to the buffer
 
         Args:
-            arr (np.array of shape(n_out_channels, buffer_hop)): Frames to be played
+            arr (np.array of shape(buffer_hop, n_out_channels)): Frames to be played
         """
-        #assert arr.shape == (self.n_out_channels, self.buffer_hop), 'incorect shape of output'
+        assert arr.shape == (self.buffer_hop, self.n_out_channels) or arr.shape == (self.buffer_hop,), 'incorect shape of the output'
         interleaved = arr.flatten()
         self.out_queue.put(interleaved.tobytes())
 
@@ -237,7 +239,7 @@ class Audio:
         """Get values from the buffer, encode it and return
 
         Retruns:
-            np.array of the shape (n_in_channels, buffer_hop)
+            np.array of the shape (buffer_size, n_in_channels)
         """
         b = self.in_queue.get()
         arr = np.fromstring(b, dtype=self.input_dtype)
