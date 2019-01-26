@@ -22,7 +22,6 @@ class Model:
             self.init_est_vad = init_est_vad
             self.vad_thresh = vad_thresh
             self.spec_avg = np.ones(int(frame_len/2 + 1))
-            self.sp = Model.fft_len
 
         def vad(self, fftd):
             fftd += 0.00000001
@@ -78,10 +77,10 @@ class Model:
         self.vad = None
         self.doa = None
         self.mics = [None] * self.num_of_mics
+        self.fft_len = int(self.frame_len / 2 + 1)
         self.spat_cov_mat = np.zeros((self.num_of_mics, self.num_of_mics, self.fft_len), np.complex64)
         for i in range(self.num_of_mics):
             self.mics[i] = self.MicInMatrix(mics_locs[i][0], mics_locs[i][1], mics_locs[i][2])
-        self.fft_len = int(self.frame_len / 2 + 1)
         self.angle_matrix = np.empty((self.num_of_mics, self.num_of_mics, 3), np.float32)
         self.distance_matrix = np.empty((self.num_of_mics, self.num_of_mics), np.float32)
         self.max_delay_matrix = np.empty((self.num_of_mics, self.num_of_mics), np.int)
@@ -154,11 +153,11 @@ class Model:
             max_d = self.max_delay_matrix[comb[0], comb[1]]
             angle_indexes = list(range(-max_d, max_d + 1))
             for ang in angle_indexes:
-                angles.append(self.compute_angle(self.speed_of_sound, ang, self.distance_matrix[comb[0], comb[1]]))
+                angles.append(self.compute_angle(ang, self.distance_matrix[comb[0], comb[1]]))
             self.angles_list.append(angles)
 
     def initialize(self):
-        self.vad = self.VAD(mu_vad=0.975, init_est_vad=20, frame_len=self.frame_len)
+        self.vad = self.VAD(mu_vad=0.975, init_est_vad=20, frame_len=self.frame_len, vad_thresh=4.8)
         self.doa = self.DOA()
 
     def process(self, ffts):

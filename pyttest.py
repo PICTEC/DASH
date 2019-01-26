@@ -6,6 +6,7 @@ import itertools
 import matplotlib.pyplot as plt
 import matplotlib.mlab as mlab
 import math
+import sounddevice as sd
 import time
 
 FRAME_LEN = 512
@@ -181,21 +182,28 @@ def combine_gccs(angles_list, results_array, combs_list):
             sigma = math.sqrt(variance)
             y += mlab.normpdf(x, mu, sigma) * results_array[combo][peak]
 
-    #plt.plot(x, y)
-    #plt.show()
-    #plt.savefig('combinaton_test_' + str(frame) + '.png')
-    #plt.close()
+    # plt.plot(x, y)
+    # plt.show()
+    # plt.savefig('combinaton_test_' + str(frame) + '.png')
+    # plt.close()
     doa = np.argmax(y)/(len(y)/180)
+    print('DOA: ' + str(doa))
     return doa
 # fig = plt.figure()
 # plt.plot(gcc_phat(x1, x2))
 # plt.show()
 
-
 # all_combs = list(itertools.combinations(range(N), 2))
 vad_results = list()
-DOA = 90
+DOA = np.pi/4
+output = np.zeros(original_wav.shape[0], np.float)
+rise = np.arange(0, int(FRAME_LEN/2 - FRAME_HOP/2), 1)
+fall = rise[::-1]
+doas = np.zeros(int(np.floor(original_wav.shape[0]/FRAME_HOP) - 3))
+reconstructing_window = np.concatenate((rise, np.repeat(191, 128), fall))
+reconstructing_window = reconstructing_window/np.max(reconstructing_window)
 for frame in range(int(np.floor(original_wav.shape[0]/FRAME_HOP) - 3)):
+    print('frame: ' + str(frame))
     results_array = list()
     vad_res = VAD(np.asarray(original_wav[(frame * FRAME_HOP):(frame * FRAME_HOP + FRAME_LEN), 0]))
     vad_results.append(vad_res)
@@ -219,7 +227,7 @@ for frame in range(int(np.floor(original_wav.shape[0]/FRAME_HOP) - 3)):
 
     if vad_res <= VAD_THRESH:
         DOA = combine_gccs(mat.angles_list, results_array, [0, 1, 5, 12, 13, 14]) / 180 * np.pi
-
+    doas[frame] = DOA*180/np.pi
     result_fftd = np.zeros((int(sig1.shape[0]/2 + 1), N), np.complex64)
     for chan in range(N):
         result_fftd[:, chan] = sfft.fft(np.asarray(original_wav[(frame*FRAME_HOP):(frame*FRAME_HOP + FRAME_LEN), chan]))[0:int(sig1.shape[0]/2 + 1)]
@@ -237,13 +245,18 @@ for frame in range(int(np.floor(original_wav.shape[0]/FRAME_HOP) - 3)):
 
         spat_cov_mat_inv = np.linalg.inv(spat_cov_mat[:, :, k])
         # this should be right
-        w_theta = np.matmul(spat_cov_mat_inv, d_theta)/np.matmul(
+        w_theta = np.matmul(np.conjugate(d_theta), spat_cov_mat_inv)/np.matmul(
             np.matmul(np.conjugate(d_theta), spat_cov_mat_inv), d_theta)
-        result_fftd[k, :] = np.conjugate(w_theta) * result_fftd[k, :]
+        result_fftd[k, :] = w_theta * result_fftd[k, :]
 
     sig_summed = np.sum(result_fftd, axis=1)
-    sig_out = sfft.ifft(np.concatenate((sig_summed[::-1], sig_summed[1::])))
+    sig_out = sfft.ifft(np.concatenate((sig_summed[::-1], sig_summed[1:(sig_summed.shape[0] - 1)])))
+    output[(frame * FRAME_HOP):(frame * FRAME_HOP + FRAME_LEN)] = sig_out * reconstructing_window
 
-fig = plt.figure()
-plt.plot(vad_results)
-plt.show()
+scaled = np.int16(output/np.max(np.abs(output)) * 32767)
+sd.play(scaled, 16000)
+sio.write('test.wav', 16000, scaled)
+
+# fig = plt.figure()
+# plt.plot(vad_results)
+# plt.show()
