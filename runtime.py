@@ -5,6 +5,7 @@ import yaml
 
 from audio import Audio
 from model import DolphinModel
+from mvdr_model import Model
 from post_filter import PostFilter, NullPostFilter
 from utils import fft, Remix
 
@@ -21,7 +22,8 @@ def main(audio_config, post_filter_config, model_config):
         post_filter = NullPostFilter()
     else:
         raise ValueError("Wrong post filter")
-    model = DolphinModel(**model_config)
+
+    model = Model(**model_config)
     remixer = Remix(buffer_size=audio.buffer_size, buffer_hop=audio.buffer_hop,
                     channels=audio.n_out_channels)
     with audio:
@@ -65,5 +67,14 @@ if __name__ == "__main__":
             audio_config = yaml.load(file)
     except:
         model_config = {}
+
+    # my change instead of reading from file
+    model_config = {"n": 6, "f": 16000, "speed_of_sound": 340, "frame_hop": 128, "frame_len": 512, "mu_cov": 0.95,
+              "mics_locs": [[0.00000001, 0.00000001, 0.00000001],
+                            [0.1, 0.00000001, 0.00000001],
+                            [0.2, 0.00000001, 0.00000001],
+                            [0.00000001, -0.19, 0.00000001],
+                            [0.1, -0.19, 0.00000001],
+                            [0.2, -0.19, 0.00000001]]}
 
     main(audio_config, post_filter_config, model_config)

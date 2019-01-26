@@ -6,13 +6,13 @@ import matplotlib.pyplot as plt
 import matplotlib.mlab as mlab
 import math
 
-kwargs = {"n": 6, "f": 16000, "speed_of_sound": 340, "frame_hop": 128, "frame_len": 512, "mu_cov": 0.95,
-          "mics_locs": [[0.00000001, 0.00000001, 0.00000001],
-                        [0.1, 0.00000001, 0.00000001],
-                        [0.2, 0.00000001, 0.00000001],
-                        [0.00000001, -0.19, 0.00000001],
-                        [0.1, -0.19, 0.00000001],
-                        [0.2, -0.19, 0.00000001]]}
+# kwargs = {"n": 6, "f": 16000, "speed_of_sound": 340, "frame_hop": 128, "frame_len": 512, "mu_cov": 0.95,
+#           "mics_locs": [[0.00000001, 0.00000001, 0.00000001],
+#                         [0.1, 0.00000001, 0.00000001],
+#                         [0.2, 0.00000001, 0.00000001],
+#                         [0.00000001, -0.19, 0.00000001],
+#                         [0.1, -0.19, 0.00000001],
+#                         [0.2, -0.19, 0.00000001]]}
 
 
 class Model:
@@ -49,6 +49,7 @@ class Model:
                              (np.asarray(np.append(np.pi, angles_list[combo])) / np.pi * 180)[1:])[
                             0:int(np.ceil(len(angles_list[combo]) / 2))]
                 distances = np.append(distances, distances[0:-1][::-1])
+
                 for peak in range(0, len(angles_list[combo])):
                     mu = angles_list[combo][peak] / np.pi * 180
                     variance = 1.5 * distances[peak]
@@ -74,6 +75,7 @@ class Model:
         self.frame_len = frame_len
         self.frequency = f
         self.mu_cov = mu_cov
+        self.frame = 0
         self.vad = None
         self.doa = None
         self.mics = [None] * self.num_of_mics
@@ -85,6 +87,7 @@ class Model:
         self.distance_matrix = np.empty((self.num_of_mics, self.num_of_mics), np.float32)
         self.max_delay_matrix = np.empty((self.num_of_mics, self.num_of_mics), np.int)
         self.all_combs = list(itertools.combinations(range(n), 2))
+        # self.all_combs = list(list(itertools.combinations(range(n), 2))[i] for i in [0, 1, 5, 12, 13, 14])
         self.angles_list = list()
         for comb in self.all_combs:
             self.distance_matrix[comb] = self.compute_dist(comb[0], comb[1])
@@ -97,7 +100,7 @@ class Model:
     def estimate_covariance_mat(self, fftd):
         cov_mat = np.zeros((self.num_of_mics, self.num_of_mics, int(self.fft_len)), np.complex64)
         for k in range(0, self.fft_len):
-            cov_mat[:, :, k] = np.outer(np.transpose(fftd[:, k]), np.conjugate(fftd[:, k]))
+            cov_mat[:, :, k] = np.outer(np.transpose(fftd[k, :]), np.conjugate(fftd[k, :]))
             cov_mat[:, :, k] = cov_mat[:, :, k] / np.trace(cov_mat[:, :, k])
         return cov_mat
 
@@ -165,12 +168,12 @@ class Model:
         vad_res = self.vad.vad(ffts[:, 0])  # TODO check if this is ok
         self.vad_results.append(vad_res)
 
-        if vad_res > self.vad.vad.vad_thresh:
+        if vad_res > self.vad.vad_thresh or self.frame < 10:
             self.spat_cov_mat = self.spat_cov_mat * self.mu_cov + self.estimate_covariance_mat(
                 ffts) * (1 - self.mu_cov)
 
         for comb in self.all_combs:
-            res = self.doa.gcc_phat(ffts[comb[0]], ffts[comb[1]])[0:self.max_delay_matrix[comb] + 1]
+            res = self.doa.gcc_phat(ffts[:, comb[0]], ffts[:, comb[1]])[0:(self.max_delay_matrix[comb] + 1)]
             res = np.concatenate((res[::-1], res[1::]), axis=None)
             results_array.append(res)
 
@@ -180,8 +183,8 @@ class Model:
             # plt.savefig('gcc_test_' + str(frame) + '_' + str(comb) + '.png')
             # plt.close()
 
-        if vad_res <= self.vad.vad.vad_thresh:
-            doa_res = self.doa.combine_gccs(self.angles_list, results_array, [0, 1, 5, 12, 13, 14]) / 180 * np.piS
+        if vad_res <= self.vad.vad_thresh:
+            doa_res = self.doa.combine_gccs(self.angles_list, results_array, [0, 1, 5, 12, 13, 14]) / 180 * np.pi
 
         result_fftd = np.zeros((self.fft_len, self.num_of_mics), np.complex64)
 
@@ -203,5 +206,8 @@ class Model:
             result_fftd[k, :] = w_theta * ffts[k, :]
 
         sig_summed = np.sum(result_fftd, axis=1)
+
+        self.frame += 1
+        print(self.frame)
 
         return sig_summed
