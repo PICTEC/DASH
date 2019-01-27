@@ -38,7 +38,10 @@ class matrix_class():
         for comb in self.all_combs:
             self.distance_matrix[comb] = self.compute_dist(comb[0], comb[1])
             self.max_delay_matrix[comb] = int(self.calculate_max_delay(comb[0], comb[1]))
+            self.angle_matrix[comb[0], comb[1]] = self.compute_ang(comb[0], comb[1])
+
         self.calc_all_angles()
+
 
     class mic_in_matrix():
         def __init__(self, x, y, z):
@@ -47,32 +50,62 @@ class matrix_class():
             self.z_loc = z
 
 # compute angle between mics around axis # is this even necessary?
-    def on_x(self, mic_1, mic_2):
-        return np.arccos(((self.mics[mic_2].y_loc * self.mics[mic_1].y_loc) +
-                          (self.mics[mic_2].z_loc * self.mics[mic_1].z_loc)) /
-                         ((np.sqrt(self.mics[mic_1].y_loc**2 + self.mics[mic_1].z_loc**2)) *
-                          (np.sqrt(self.mics[mic_2].y_loc**2 + self.mics[mic_2].z_loc**2))))
+#     def on_x(self, mic_1, mic_2):
+#         return np.arccos(((self.mics[mic_2].y_loc * self.mics[mic_1].y_loc) +
+#                           (self.mics[mic_2].z_loc * self.mics[mic_1].z_loc)) /
+#                          ((np.sqrt(self.mics[mic_1].y_loc**2 + self.mics[mic_1].z_loc**2)) *
+#                           (np.sqrt(self.mics[mic_2].y_loc**2 + self.mics[mic_2].z_loc**2))))
+#
+#     def on_y(self, mic_1, mic_2):
+#         return np.arccos(((self.mics[mic_2].x_loc * self.mics[mic_1].x_loc) +
+#                           (self.mics[mic_2].z_loc * self.mics[mic_1].z_loc)) /
+#                          ((np.sqrt(self.mics[mic_1].x_loc**2 + self.mics[mic_1].z_loc**2)) *
+#                           (np.sqrt(self.mics[mic_2].x_loc**2 + self.mics[mic_2].z_loc**2))))
+#
+#     def on_z(self, mic_1, mic_2):
+#         return np.arccos(((self.mics[mic_2].y_loc * self.mics[mic_1].y_loc) +
+#                           (self.mics[mic_2].x_loc * self.mics[mic_1].x_loc)) /
+#                          ((np.sqrt(self.mics[mic_1].y_loc**2 + self.mics[mic_1].x_loc**2)) *
+#                           (np.sqrt(self.mics[mic_2].y_loc**2 + self.mics[mic_2].x_loc**2))))
 
-    def on_y(self, mic_1, mic_2):
-        return np.arccos(((self.mics[mic_2].x_loc * self.mics[mic_1].x_loc) +
-                          (self.mics[mic_2].z_loc * self.mics[mic_1].z_loc)) /
-                         ((np.sqrt(self.mics[mic_1].x_loc**2 + self.mics[mic_1].z_loc**2)) *
-                          (np.sqrt(self.mics[mic_2].x_loc**2 + self.mics[mic_2].z_loc**2))))
+    def compute_ang(self, mic_1, mic_2):
+        mic_vector = [self.mics[mic_2].x_loc - self.mics[mic_1].x_loc, self.mics[mic_2].y_loc - self.mics[mic_1].y_loc,
+                      self.mics[mic_2].z_loc - self.mics[mic_1].z_loc]
+        x_vec = [1, 0.00000000001, 0.00000000001]
+        y_vec = [0.00000000001, 1, 0.00000000001]
+        z_vec = [0.00000000001, 0.00000000001, 1]
 
-    def on_z(self, mic_1, mic_2):
-        return np.arccos(((self.mics[mic_2].y_loc * self.mics[mic_1].y_loc) +
-                          (self.mics[mic_2].x_loc * self.mics[mic_1].x_loc)) /
-                         ((np.sqrt(self.mics[mic_1].y_loc**2 + self.mics[mic_1].x_loc**2)) *
-                          (np.sqrt(self.mics[mic_2].y_loc**2 + self.mics[mic_2].x_loc**2))))
+        on_x = np.arcsin(((mic_vector[1] * x_vec[1]) +
+                          (mic_vector[2] * x_vec[2])) /
+                         ((np.sqrt(x_vec[1]**2 + x_vec[2]**2)) *
+                          (np.sqrt(mic_vector[1]**2 + mic_vector[2]**2))))
+        if np.isnan(on_x):
+            on_x = 0.0
 
-    def compute_ang(self, mic_1, mic_2, axis):
-        if axis == 'x':
-            ang = self.on_x(mic_1, mic_2)
-        elif axis == 'y':
-            ang = self.on_y(mic_1, mic_2)
-        elif axis == 'z':
-            ang = self.on_z(mic_1, mic_2)
-        return ang
+        on_y = np.arcsin(((mic_vector[0] * y_vec[0]) +
+                          (mic_vector[2] * y_vec[2])) /
+                         ((np.sqrt(y_vec[0]**2 + y_vec[2]**2)) *
+                          (np.sqrt(mic_vector[0]**2 + mic_vector[2]**2))))
+        if np.isnan(on_y):
+            on_y = 0.0
+
+        on_z = np.arcsin(((mic_vector[1] * z_vec[1]) +
+                           (mic_vector[0] * z_vec[0])) /
+                          ((np.sqrt(z_vec[1] ** 2 + z_vec[0] ** 2)) *
+                           (np.sqrt(mic_vector[1] ** 2 + mic_vector[0] ** 2))))
+        if np.isnan(on_z):
+            on_z = 0.0
+
+        return [on_x, on_y, on_z]
+
+
+        # if axis == 'x':
+        #     ang = self.on_x(mic_1, mic_2)
+        # elif axis == 'y':
+        #     ang = self.on_y(mic_1, mic_2)
+        # elif axis == 'z':
+        #     ang = self.on_z(mic_1, mic_2)
+        # return ang
 
 # compute distance between mics
     def compute_dist(self, mic_1, mic_2):
@@ -182,10 +215,10 @@ def combine_gccs(angles_list, results_array, combs_list):
             sigma = math.sqrt(variance)
             y += mlab.normpdf(x, mu, sigma) * results_array[combo][peak]
 
-    # plt.plot(x, y)
-    # plt.show()
-    # plt.savefig('combinaton_test_' + str(frame) + '.png')
-    # plt.close()
+    plt.plot(x, y)
+    plt.show()
+    plt.savefig('combinaton_test_' + str(frame) + '.png')
+    plt.close()
     doa = np.argmax(y)/(len(y)/180)
     print('DOA: ' + str(doa))
     return doa
@@ -202,61 +235,61 @@ fall = rise[::-1]
 doas = np.zeros(int(np.floor(original_wav.shape[0]/FRAME_HOP) - 3))
 reconstructing_window = np.concatenate((rise, np.repeat(191, 128), fall))
 reconstructing_window = reconstructing_window/np.max(reconstructing_window)
-for frame in range(int(np.floor(original_wav.shape[0]/FRAME_HOP) - 3)):
-    print('frame: ' + str(frame))
-    results_array = list()
-    vad_res = VAD(np.asarray(original_wav[(frame * FRAME_HOP):(frame * FRAME_HOP + FRAME_LEN), 0]))
-    vad_results.append(vad_res)
-    if frame == 0:
-        spat_cov_mat = estimate_covariance_mat(original_wav[(frame * FRAME_HOP):(frame * FRAME_HOP + FRAME_LEN), :])
-    if vad_res > VAD_THRESH:
-        spat_cov_mat = spat_cov_mat * MU_COV + estimate_covariance_mat(original_wav[(frame * FRAME_HOP):(frame * FRAME_HOP + FRAME_LEN), :]) * (1 - MU_COV)
-
-    for comb in mat.all_combs:
-        sig1 = np.asarray(original_wav[(frame*FRAME_HOP):(frame*FRAME_HOP + FRAME_LEN), comb[0]])
-        sig2 = np.asarray(original_wav[(frame*FRAME_HOP):(frame*FRAME_HOP + FRAME_LEN), comb[1]])
-        res = gcc_phat(sig1, sig2)[0:mat.max_delay_matrix[comb] + 1]
-        res = np.concatenate((res[::-1], res[1::]), axis=None)
-        results_array.append(res)
-
-        # fig = plt.figure()
-        # plt.plot(res)
-        # plt.show()
-        # plt.savefig('gcc_test_' + str(frame) + '_' + str(comb) + '.png')
-        # plt.close()
-
-    if vad_res <= VAD_THRESH:
-        DOA = combine_gccs(mat.angles_list, results_array, [0, 1, 5, 12, 13, 14]) / 180 * np.pi
-    doas[frame] = DOA*180/np.pi
-    result_fftd = np.zeros((int(sig1.shape[0]/2 + 1), N), np.complex64)
-    for chan in range(N):
-        result_fftd[:, chan] = sfft.fft(np.asarray(original_wav[(frame*FRAME_HOP):(frame*FRAME_HOP + FRAME_LEN), chan]))[0:int(sig1.shape[0]/2 + 1)]
-
-    # if vad_res <= VAD_THRESH: # do we replace it with something?
-    for k in range(1, int(sig1.shape[0]/2 + 1)):
-        # this is VERY specific to current implementation, change it if combine_gccs changes
-        d_theta = [1,
-                   np.exp(-1j * 2 * np.pi * 0.1 / (k * mat.frequency / (FRAME_LEN / 2)) * np.cos(DOA)),
-                   np.exp(-1j * 2 * np.pi * 0.2 / (k * mat.frequency / (FRAME_LEN / 2)) * np.cos(DOA)),
-                   1,
-                   np.exp(-1j * 2 * np.pi * 0.1 / (k * mat.frequency / (FRAME_LEN / 2)) * np.cos(DOA)),
-                   np.exp(-1j * 2 * np.pi * 0.2 / (k * mat.frequency / (FRAME_LEN / 2)) * np.cos(DOA))]
-            # d_theta = np.zeros(mat.mic)
-
-        spat_cov_mat_inv = np.linalg.inv(spat_cov_mat[:, :, k])
-        # this should be right
-        w_theta = np.matmul(np.conjugate(d_theta), spat_cov_mat_inv)/np.matmul(
-            np.matmul(np.conjugate(d_theta), spat_cov_mat_inv), d_theta)
-        result_fftd[k, :] = w_theta * result_fftd[k, :]
-
-    sig_summed = np.sum(result_fftd, axis=1)
-    sig_out = sfft.ifft(np.concatenate((sig_summed[::-1], sig_summed[1:(sig_summed.shape[0] - 1)])))
-    output[(frame * FRAME_HOP):(frame * FRAME_HOP + FRAME_LEN)] = sig_out * reconstructing_window
-
-scaled = np.int16(output/np.max(np.abs(output)) * 32767)
-sd.play(scaled, 16000)
-sio.write('test.wav', 16000, scaled)
-
-# fig = plt.figure()
-# plt.plot(vad_results)
-# plt.show()
+# for frame in range(int(np.floor(original_wav.shape[0]/FRAME_HOP) - 3)):
+#     print('frame: ' + str(frame))
+#     results_array = list()
+#     vad_res = VAD(np.asarray(original_wav[(frame * FRAME_HOP):(frame * FRAME_HOP + FRAME_LEN), 0]))
+#     vad_results.append(vad_res)
+#     if frame == 0:
+#         spat_cov_mat = estimate_covariance_mat(original_wav[(frame * FRAME_HOP):(frame * FRAME_HOP + FRAME_LEN), :])
+#     if vad_res > VAD_THRESH:
+#         spat_cov_mat = spat_cov_mat * MU_COV + estimate_covariance_mat(original_wav[(frame * FRAME_HOP):(frame * FRAME_HOP + FRAME_LEN), :]) * (1 - MU_COV)
+#
+#     for comb in mat.all_combs:
+#         sig1 = np.asarray(original_wav[(frame*FRAME_HOP):(frame*FRAME_HOP + FRAME_LEN), comb[0]])
+#         sig2 = np.asarray(original_wav[(frame*FRAME_HOP):(frame*FRAME_HOP + FRAME_LEN), comb[1]])
+#         res = gcc_phat(sig1, sig2)[0:mat.max_delay_matrix[comb] + 1]
+#         res = np.concatenate((res[::-1], res[1::]), axis=None)
+#         results_array.append(res)
+#
+#         # fig = plt.figure()
+#         # plt.plot(res)
+#         # plt.show()
+#         # plt.savefig('gcc_test_' + str(frame) + '_' + str(comb) + '.png')
+#         # plt.close()
+#
+#     if vad_res <= VAD_THRESH:
+#         DOA = combine_gccs(mat.angles_list, results_array, [0, 1, 5, 12, 13, 14]) / 180 * np.pi
+#     doas[frame] = DOA*180/np.pi
+#     result_fftd = np.zeros((int(sig1.shape[0]/2 + 1), N), np.complex64)
+#     for chan in range(N):
+#         result_fftd[:, chan] = sfft.fft(np.asarray(original_wav[(frame*FRAME_HOP):(frame*FRAME_HOP + FRAME_LEN), chan]))[0:int(sig1.shape[0]/2 + 1)]
+#
+#     # if vad_res <= VAD_THRESH: # do we replace it with something?
+#     for k in range(1, int(sig1.shape[0]/2 + 1)):
+#         # this is VERY specific to current implementation, change it if combine_gccs changes
+#         d_theta = [1,
+#                    np.exp(-1j * 2 * np.pi * 0.1 / (k * mat.frequency / (FRAME_LEN / 2)) * np.cos(DOA)),
+#                    np.exp(-1j * 2 * np.pi * 0.2 / (k * mat.frequency / (FRAME_LEN / 2)) * np.cos(DOA)),
+#                    1,
+#                    np.exp(-1j * 2 * np.pi * 0.1 / (k * mat.frequency / (FRAME_LEN / 2)) * np.cos(DOA)),
+#                    np.exp(-1j * 2 * np.pi * 0.2 / (k * mat.frequency / (FRAME_LEN / 2)) * np.cos(DOA))]
+#             # d_theta = np.zeros(mat.mic)
+#
+#         spat_cov_mat_inv = np.linalg.inv(spat_cov_mat[:, :, k])
+#         # this should be right
+#         w_theta = np.matmul(np.conjugate(d_theta), spat_cov_mat_inv)/np.matmul(
+#             np.matmul(np.conjugate(d_theta), spat_cov_mat_inv), d_theta)
+#         result_fftd[k, :] = w_theta * result_fftd[k, :]
+#
+#     sig_summed = np.sum(result_fftd, axis=1)
+#     sig_out = sfft.ifft(np.concatenate((sig_summed[::-1], sig_summed[1:(sig_summed.shape[0] - 1)])))
+#     output[(frame * FRAME_HOP):(frame * FRAME_HOP + FRAME_LEN)] = sig_out * reconstructing_window
+#
+# scaled = np.int16(output/np.max(np.abs(output)) * 32767)
+# sd.play(scaled, 16000)
+# sio.write('test.wav', 16000, scaled)
+#
+# # fig = plt.figure()
+# # plt.plot(vad_results)
+# # plt.show()

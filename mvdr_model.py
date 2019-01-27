@@ -206,7 +206,7 @@ class Model:
             result_fftd[k, :] = w_theta * ffts[k, :]
 
         sig_summed = np.sum(result_fftd, axis=1)
-
+        sig_summed = ffts[:,0]
         self.frame += 1
         print(self.frame)
 

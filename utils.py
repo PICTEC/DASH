@@ -62,7 +62,7 @@ def stft(y, n_fft=512, hop_length=128, window=np.hamming):
         win = np.fft.rfft(win)
         stft_v[:, i] = win
     return stft_v
-,
+
 
 def fft(x, frame_width, channels):
     out = np.zeros((int((frame_width/2)+1), channels))

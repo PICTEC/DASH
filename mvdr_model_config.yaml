@@ -2,7 +2,7 @@ n: 6
 f: 16000
 speed_of_sound: 340
 frame_hop: 128
-frame_len: 512
+frame_len: 1024
 mu_cov: 0.95,
 mics_locs: [[0.00000001, 0.00000001, 0.00000001],
             [0.1, 0.00000001, 0.00000001],
