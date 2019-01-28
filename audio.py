@@ -36,7 +36,7 @@ class PlayThread(threading.Thread):
         self.play = play
 
         if play:
-            self.stream = p.open(format=pyaudio.paFloat32,
+            self.stream = p.open(format=pyaudio.paInt16,
                                  channels=self.channels,
                                  rate=self.sample_rate,
                                  output=True,
@@ -51,7 +51,7 @@ class PlayThread(threading.Thread):
             file_name = 'records/outputs/' + time.asctime() + '_out.wav'
             self.f = wave.open(file_name, 'w')
             self.f.setnchannels(channels)
-            self.f.setsampwidth(4)
+            self.f.setsampwidth(2)
             self.f.setframerate(sample_rate)
 
     def run(self):
@@ -232,6 +232,7 @@ class Audio:
             arr (np.array of shape(buffer_hop, n_out_channels)): Frames to be played
         """
         assert arr.shape == (self.buffer_hop, self.n_out_channels) or arr.shape == (self.buffer_hop,), 'incorect shape of the output'
+        arr = (arr*(2**15)).astype(np.int16)
         interleaved = arr.flatten()
         self.out_queue.put(interleaved.tobytes())
 
