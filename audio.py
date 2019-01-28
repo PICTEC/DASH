@@ -48,7 +48,7 @@ class PlayThread(threading.Thread):
                 makedirs('records/outputs')
             except:
                 pass
-            file_name = 'records/outputs/' + time.asctime() + '_out.wav'
+            file_name = 'records/outputs/' + time.strftime('%y%m%d_%H%M%S') + '_out.wav'
             self.f = wave.open(file_name, 'w')
             self.f.setnchannels(channels)
             self.f.setsampwidth(2)
@@ -138,7 +138,7 @@ class ReadThread(threading.Thread):
                 makedirs('records/inputs')
             except:
                 pass
-            file_name = 'records/inputs/' + time.asctime() + '_in.wav'
+            file_name = 'records/inputs/' + time.strftime('%y%m%d_%H%M%S') + '_in.wav'
             self.f = wave.open(file_name, 'w')
             self.f.setnchannels(channels)
             self.f.setsampwidth(4)
