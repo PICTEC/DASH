@@ -69,7 +69,7 @@ if __name__ == "__main__":
         model_config = {}
 
     # my change instead of reading from file
-    model_config = {"n": 6, "f": 16000, "speed_of_sound": 340, "frame_hop": 128, "frame_len": 512, "mu_cov": 0.95,
+    model_config = {"n": 6, "f": 16000, "speed_of_sound": 340, "frame_hop": 128, "frame_len": 1024, "mu_cov": 0.95,
               "mics_locs": [[0.00000001, 0.00000001, 0.00000001],
                             [0.1, 0.00000001, 0.00000001],
                             [0.2, 0.00000001, 0.00000001],
