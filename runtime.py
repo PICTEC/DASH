@@ -1,12 +1,22 @@
 #!/usr/bin/env python
 
 import argparse
+import logging
 import yaml
 
 from audio import Audio
 from model import DolphinModel
+from mvdr_model import Model as MVDRModel
+from mvdr_model import kwargs as mvdr_defaults
 from post_filter import PostFilter, NullPostFilter
 from utils import fft, Remix
+
+logging.basicConfig(level=logging.DEBUG)
+
+MODEL_LIB = {
+    "beam": MVDRModel,
+    "dolphin": DolphinModel
+}
 
 def main(audio_config, post_filter_config, model_config):
     """
@@ -21,7 +31,8 @@ def main(audio_config, post_filter_config, model_config):
         post_filter = NullPostFilter()
     else:
         raise ValueError("Wrong post filter")
-    model = DolphinModel(**model_config)
+    model_class = model_config.pop("mode")
+    model = MODEL_LIB[model_class](**model_config)
     remixer = Remix(buffer_size=audio.buffer_size, buffer_hop=audio.buffer_hop,
                     channels=audio.n_out_channels)
     with audio:
@@ -64,6 +75,7 @@ if __name__ == "__main__":
         with open(args.model_config, 'r') as file:
             audio_config = yaml.load(file)
     except:
-        model_config = {}
+        model_config = {"mode": "beam"}
+        model_config.update(mvdr_defaults)
 
     main(audio_config, post_filter_config, model_config)

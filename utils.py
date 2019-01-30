@@ -65,19 +65,19 @@ def stft(y, n_fft=512, hop_length=128, window=np.hamming):
 
 
 def fft(x, frame_width, channels):
-    out = np.zeros((int((frame_width/2)+1), channels))
+    out = np.zeros((int((frame_width/2)+1), channels), np.complex64)
     for ch in range(channels):
-        out[:,ch] = np.fft.rfft(np.hamming(frame_width)**0.5 * x[:,ch])
+        out[:,ch] = np.fft.rfft(np.hamming(frame_width) ** 0.5 * x[:,ch])
     return out
 
 
 def ifft(x, frame_width, channels):
     out = np.zeros((frame_width, channels), dtype=np.float32)
     if channels == 1:
-        out =  np.hamming(frame_width)**0.5 *np.fft.irfft(x[:,0])
+        out = np.fft.irfft(x[:, 0]) * np.hamming(frame_width) ** 0.5
     else:
         for ch in range(channels):
-            out[:,ch] = np.hamming(frame_width)**0.5 *np.fft.irfft(x[:,ch])
+            out[:, ch] = np.fft.irfft(x[:, ch]) * np.hamming(frame_width) ** 0.5
     return out
 
 
