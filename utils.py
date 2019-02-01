@@ -74,7 +74,7 @@ def fft(x, frame_width, channels):
 def ifft(x, frame_width, channels):
     out = np.zeros((frame_width, channels), dtype=np.float32)
     if channels == 1:
-        out = np.fft.irfft(x[:, 0]) * np.hamming(frame_width) ** 0.5
+        out =  np.hamming(frame_width)**0.5 *np.fft.irfft(x)
     else:
         for ch in range(channels):
             out[:, ch] = np.fft.irfft(x[:, ch]) * np.hamming(frame_width) ** 0.5

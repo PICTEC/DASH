@@ -1,10 +1,10 @@
-buffer_size: 512
+buffer_size: 1024
 buffer_hop: 128
 sample_rate: 16000
 n_in_channels: 6
 n_out_channels: 1
 input_device_id: NULL
 output_device_id: NULL
-input_from_file: NULL
+input_from_file: /home/nvidia/DASH/test.record.wav
 save_input: TRUE
 save_output: TRUE
