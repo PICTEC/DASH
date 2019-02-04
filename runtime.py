@@ -49,11 +49,20 @@ def main(audio_config, post_filter_config, model_config):
             audio.write_to_output(sample)
 
 def get_args():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description="Showcase of speech enhancement technologies.\n\n"
+                                                 "To use, supply at least one of the configs from `./configs`. In case you\n"
+                                                 "want to use defaults, use -defaults flag.")
     parser.add_argument('-audio_config', help='path to audio config yaml file')
     parser.add_argument('-post_filter_config', help='path to post filter config yaml file')
     parser.add_argument('-model_config', help='path to model config yaml file')
-    return parser.parse_args()
+    parser.add_argument('-defaults', help='Use if no other flag is used', action='store_true')
+
+    args = parser.parse_args()
+    if all([x is None for x in [args.audio_config, args.post_filter_config, args.model_config]]):
+        parser.print_help()
+        exit(1)
+    return args
+
 
 if __name__ == "__main__":
     """
