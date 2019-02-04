@@ -35,7 +35,6 @@ class Remix:
         self.buffer_hop = buffer_hop
         self.channels = channels
         self.buffer = np.zeros((buffer_size, channels), np.float32)
-
         self.overlaps = self.buffer_size / self.buffer_hop
 
     def process(self, sample):
