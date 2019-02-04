@@ -1,3 +1,4 @@
+from keras.callbacks import Callback
 import numpy as np
 import os
 import scipy.io.wavfile as sio
@@ -108,3 +109,36 @@ def list_sounds(src):
             if fname.endswith(".wav") or fname.endswith(".flac"):
                 sources.append(os.path.join(path, fname))
     return sources
+
+
+class StopOnConvergence(Callback):
+    def __init__(self, max_repetitions=10):
+        super().__init__()
+        self.max_repetitions = max_repetitions
+
+    def on_train_begin(self, logs=None):
+        self.repetitions = 0
+        self.last_loss = np.inf
+
+    def on_epoch_end(self, batch, logs=None):
+        logs = logs or {}
+        loss = logs.get('val_loss')
+        if loss is not None:
+            if loss > self.last_loss:
+                self.repetitions += 1
+            else:
+                self.last_loss = loss
+                self.repetitions = 0
+            if self.repetitions > self.max_repetitions:
+                self.model.stop_training = True
+
+def save_model(model, path):
+    """
+    Model should be stripped of all callbacks and needless objects...
+    """
+    model.optimizer = None
+    model.built = False
+    model.loss = None
+    model.save(path)
+
+
