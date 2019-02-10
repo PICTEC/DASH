@@ -6,18 +6,21 @@ import yaml
 
 from audio import Audio
 from model import DolphinModel
-from mvdr_model import Model
-from post_filter import PostFilter, NullPostFilter
+from mvdr_model import Model as MVDRModel
+from post_filter import DAEPostFilter, NullPostFilter
 from utils import fft, Remix
 
 logging.basicConfig(level=logging.DEBUG)
 
-"""
 MODEL_LIB = {
     "beam": MVDRModel,
     "dolphin": DolphinModel
 }
-"""
+
+POST_FILTER_LIB = {
+    "dae": DAEPostFilter,
+    "null": NullPostFilter
+}
 
 def main(audio_config, post_filter_config, model_config):
     """
@@ -25,15 +28,10 @@ def main(audio_config, post_filter_config, model_config):
     should be elsewhere, training should be done in other files.
     """
     audio = Audio(**audio_config)
-    mode = post_filter_config.pop("mode")
-    if mode == "dae":
-        post_filter = PostFilter(**post_filter_config)
-    elif mode == "null":
-        post_filter = NullPostFilter()
-    else:
-        raise ValueError("Wrong post filter")
-
-    model = Model(**model_config)
+    model_mode = model_config.pop("mode")
+    model = MODEL_LIB[model_mode](**model_config)
+    pf_mode = post_filter_config.pop("mode")
+    post_filter = POST_FILTER_LIB[pf_mode](**post_filter_config)
     remixer = Remix(buffer_size=audio.buffer_size, buffer_hop=audio.buffer_hop,
                     channels=audio.n_out_channels)
     with audio:
@@ -49,11 +47,20 @@ def main(audio_config, post_filter_config, model_config):
             audio.write_to_output(sample)
 
 def get_args():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description="Showcase of speech enhancement technologies.\n\n"
+                                                 "To use, supply at least one of the configs from"
+                                                 "`./configs`. In case you\n"
+                                                 "want to use defaults, use -defaults flag.")
     parser.add_argument('-audio_config', help='path to audio config yaml file')
     parser.add_argument('-post_filter_config', help='path to post filter config yaml file')
     parser.add_argument('-model_config', help='path to model config yaml file')
-    return parser.parse_args()
+    parser.add_argument('-defaults', help='Use if no other flag is used', action='store_true')
+    args = parser.parse_args()
+    if all([not x for x in [args.audio_config, args.post_filter_config, args.model_config, args.defaults]]):
+        parser.print_help()
+        exit(1)
+    return args
+
 
 if __name__ == "__main__":
     """
@@ -76,15 +83,13 @@ if __name__ == "__main__":
         with open(args.model_config, 'r') as file:
             audio_config = yaml.load(file)
     except:
-        pass
-
-    # my change instead of reading from file
-    model_config = {"n": 6, "f": 16000, "speed_of_sound": 340, "frame_hop": 128, "frame_len": 1024, "mu_cov": 0.95,
-              "mics_locs": [[0.00000001, 0.00000001, 0.00000001],
-                            [0.1, 0.00000001, 0.00000001],
-                            [0.2, 0.00000001, 0.00000001],
-                            [0.00000001, -0.19, 0.00000001],
-                            [0.1, -0.19, 0.00000001],
-                            [0.2, -0.19, 0.00000001]]}
+        model_config = {"mode": "beam", "n": 6, "f": 16000, "speed_of_sound": 340,
+            "frame_hop": 128, "frame_len": 1024, "mu_cov": 0.95,
+            "mics_locs": [[0.00000001, 0.00000001, 0.00000001],
+                          [0.1, 0.00000001, 0.00000001],
+                          [0.2, 0.00000001, 0.00000001],
+                          [0.00000001, -0.19, 0.00000001],
+                          [0.1, -0.19, 0.00000001],
+                          [0.2, -0.19, 0.00000001]]}
 
     main(audio_config, post_filter_config, model_config)

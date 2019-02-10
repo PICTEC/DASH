@@ -34,7 +34,7 @@ class DAEAcousticModel:
 
 class DolphinModel(BufferMixin([17, 257, 6], np.complex64)):
     """
-    Via beamformer, whole pipeline for estimation of masks is understood.
+    Beamformer is a whole estimation of masks pipeline.
     Acoustic model is a generative model that filters the speech so it sounds
     more naturally.
     """
@@ -48,5 +48,4 @@ class DolphinModel(BufferMixin([17, 257, 6], np.complex64)):
         mask = self.beamformer(self.buffer)
         pattern = self.acoustic_model(self.buffer)
         ret = (mask * sample[:, 0] + (1 - mask) * pattern * np.exp(1j * np.angle(sample[:, 0]))).reshape(-1, 1)
-        print(ret)
         return ret
