@@ -1,10 +1,9 @@
-from keras.callbacks import Callback
 import numpy as np
 import os
 import scipy.io.wavfile as sio
 import subprocess
 import tempfile
-
+import time
 
 def BufferMixin(buffer_size=[1, 257], dtype=np.float32):
 
@@ -35,6 +34,7 @@ class Remix:
         self.buffer_hop = buffer_hop
         self.channels = channels
         self.buffer = np.zeros((buffer_size, channels), np.float32)
+
         self.overlaps = self.buffer_size / self.buffer_hop
 
     def process(self, sample):
@@ -63,12 +63,18 @@ def stft(y, n_fft=512, hop_length=128, window=np.hamming):
         stft_v[:, i] = win
     return stft_v
 
+WINDOW = None
+FRAMEW = None
+CHANNELS = None
 
+# TODO: this should be object now...
 def fft(x, frame_width, channels):
-    out = np.zeros((int((frame_width/2)+1), channels), np.complex64)
-    for ch in range(channels):
-        out[:,ch] = np.fft.rfft(np.hamming(frame_width) ** 0.5 * x[:,ch])
-    return out
+    global FRAMEW, WINDOW, CHANNELS
+    if FRAMEW != frame_width:
+        FRAMEW = frame_width
+        CHANNELS = channels
+        WINDOW = np.stack([np.hamming(frame_width) ** 0.5] * channels).T
+    return np.fft.rfft(WINDOW * x, axis=0)
 
 
 def ifft(x, frame_width, channels):
@@ -108,36 +114,3 @@ def list_sounds(src):
             if fname.endswith(".wav") or fname.endswith(".flac"):
                 sources.append(os.path.join(path, fname))
     return sources
-
-
-class StopOnConvergence(Callback):
-    def __init__(self, max_repetitions=10):
-        super().__init__()
-        self.max_repetitions = max_repetitions
-
-    def on_train_begin(self, logs=None):
-        self.repetitions = 0
-        self.last_loss = np.inf
-
-    def on_epoch_end(self, batch, logs=None):
-        logs = logs or {}
-        loss = logs.get('val_loss')
-        if loss is not None:
-            if loss > self.last_loss:
-                self.repetitions += 1
-            else:
-                self.last_loss = loss
-                self.repetitions = 0
-            if self.repetitions > self.max_repetitions:
-                self.model.stop_training = True
-
-def save_model(model, path):
-    """
-    Model should be stripped of all callbacks and needless objects...
-    """
-    model.optimizer = None
-    model.built = False
-    model.loss = None
-    model.save(path)
-
-

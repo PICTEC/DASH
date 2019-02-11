@@ -2,20 +2,25 @@
 
 import argparse
 import logging
+import time
 import yaml
 
 from audio import Audio
 from model import DolphinModel, NullModel
 from mvdr_model import Model as MVDRModel
+from mono_model import MonoModel
 from post_filter import DAEPostFilter, NullPostFilter
 from utils import fft, Remix
 
 logging.basicConfig(level=logging.DEBUG)
 
+TIMEIT = None
+
 MODEL_LIB = {
     "beam": MVDRModel,
     "dolphin": DolphinModel,
-    "null": NullModel
+    "null": NullModel,
+    "mono": MonoModel
 }
 
 POST_FILTER_LIB = {
@@ -40,12 +45,27 @@ def main(audio_config, post_filter_config, model_config):
         model.initialize()
         post_filter.initialize()
         while True:
+            if TIMEIT:
+                ft = time.time()
+                t = time.time()
             sample = audio.get_input()
             sample = fft(sample, audio.buffer_size, audio.n_in_channels)
+            if TIMEIT:
+                logging.info("Acquisition and FFT times {}ms".format(1000 * (time.time() - t)))
+                t = time.time()
             sample = model.process(sample)
+            if TIMEIT:
+                logging.info("Model time {}ms".format(1000 * (time.time() - t)))
+                t = time.time()
             sample = post_filter.process(sample)
+            if TIMEIT:
+                logging.info("Postfiltering time {}ms".format(1000 * (time.time() - t)))
+                t = time.time()
             sample = remixer.process(sample)
             audio.write_to_output(sample)
+            if TIMEIT:
+                logging.info("Resampling and output {}ms".format(1000 * (time.time() - t)))
+                logging.info("Iteration runtime {}ms".format(1000 * (time.time() - ft)))
 
 def get_args():
     parser = argparse.ArgumentParser(description="Showcase of speech enhancement technologies.\n\n"
@@ -56,6 +76,7 @@ def get_args():
     parser.add_argument('-post_filter_config', help='path to post filter config yaml file')
     parser.add_argument('-model_config', help='path to model config yaml file')
     parser.add_argument('-defaults', help='Use if no other flag is used', action='store_true')
+    parser.add_argument('-timeit', help='Indicate whether to time everything in the loop', action='store_true')
     args = parser.parse_args()
     if all([not x for x in [args.audio_config, args.post_filter_config, args.model_config, args.defaults]]):
         parser.print_help()
@@ -92,5 +113,5 @@ if __name__ == "__main__":
                           [0.00000001, -0.19, 0.00000001],
                           [0.1, -0.19, 0.00000001],
                           [0.2, -0.19, 0.00000001]]}
-
+    TIMEIT = args.timeit
     main(audio_config, post_filter_config, model_config)

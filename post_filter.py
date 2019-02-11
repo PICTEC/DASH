@@ -68,15 +68,15 @@ class DAEPostFilter(BufferMixin([17, 257], np.complex64)):
         super().__init__()
         self.model = load_model(fname, self._all_imports)
         fft_size = n_fft // 2 + 1
-        assert self.model.input_shape[-1] == fft_size
-        assert self.model.output_shape[-1] == fft_size
+        assert self.model.input_shape[-1] == fft_size, "Input shape is {}; model requires {}".format(fft_size, self.model.input_shape[-1])
+        assert self.model.output_shape[-1] == fft_size, "Input shape is {}; model requires {}".format(fft_size, self.model.output_shape[-1])
 
     def initialize(self):
         pass
 
     def process(self, sample):
         self.buffer.push(sample)
-        predictive = -np.log(np.abs(self.buffer.reshape([1, 17, 257])) ** 2)
+        predictive = -np.log(np.abs(self.buffer.reshape([1, 17, 257])) ** 2 + 2e-12)
         result = self.model.predict(predictive)
         result = result[0, 0, :]  # extract channel of interest
         result = np.sqrt(np.exp(-result)) * np.exp(1j * np.angle(sample))  # restore phase information

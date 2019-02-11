@@ -70,6 +70,8 @@ class PlayThread(threading.Thread):
                     self.stream.write(frames=frames)
                 if self.record_to_file:
                     self.f.writeframesraw(frames)
+            else:
+                time.sleep(0)
 
     def stop(self):
         """Stop thread, play what's left in the buffer and close stream
@@ -244,9 +246,7 @@ class Audio:
         """
         b = self.in_queue.get()
         arr = np.fromstring(b, dtype=self.input_dtype)
-
         assert arr.shape[0] > 0, 'The recording has ended'
-
         if self.input_dtype == np.int16:
             arr = arr.astype(np.float32) / 2**15
         try:
@@ -255,8 +255,8 @@ class Audio:
             raise RuntimeError('Incorrect shape of the input')
         self.buffer = np.roll(self.buffer, -self.buffer_hop, axis=0)
         self.buffer[-self.buffer_hop:,:] = arr
-
-        return np.copy(self.buffer)
+        ret = np.copy(self.buffer)
+        return ret
 
     def open(self):
         """Create and start threads
