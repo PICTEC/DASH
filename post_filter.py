@@ -8,6 +8,7 @@ from keras.optimizers import Adam
 from keras.regularizers import L1L2
 import numpy as np
 import os
+import time
 
 from utils import BufferMixin, StopOnConvergence, save_model, list_sounds, open_sound, stft
 import dae
@@ -67,6 +68,10 @@ class DAEPostFilter(BufferMixin([17, 257], np.complex64)):
     def __init__(self, fname="storage/dae-pf.h5", n_fft=1024):
         super().__init__()
         self.model = load_model(fname, self._all_imports)
+        self.model._make_predict_function()
+        self.input = self.model.input
+        self.output = self.model.output
+        self.session = K.get_session()
         fft_size = n_fft // 2 + 1
         assert self.model.input_shape[-1] == fft_size, "Input shape is {}; model requires {}".format(fft_size, self.model.input_shape[-1])
         assert self.model.output_shape[-1] == fft_size, "Input shape is {}; model requires {}".format(fft_size, self.model.output_shape[-1])
@@ -77,7 +82,10 @@ class DAEPostFilter(BufferMixin([17, 257], np.complex64)):
     def process(self, sample):
         self.buffer.push(sample)
         predictive = -np.log(np.abs(self.buffer.reshape([1, 17, 257])) ** 2 + 2e-12)
-        result = self.model.predict(predictive)
+        t = time.time()
+        result = self.session.run(self.output,
+                    feed_dict={self.input: predictive})
+        print("Graph time:", time.time() - t)
         result = result[0, 0, :]  # extract channel of interest
         result = np.sqrt(np.exp(-result)) * np.exp(1j * np.angle(sample))  # restore phase information
         return result
