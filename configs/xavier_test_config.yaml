@@ -1,4 +1,4 @@
-buffer_size: 1024
+buffer_size: 512
 buffer_hop: 128
 sample_rate: 16000
 n_in_channels: 6
