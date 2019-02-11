@@ -5,7 +5,7 @@ import logging
 import yaml
 
 from audio import Audio
-from model import DolphinModel
+from model import DolphinModel, NullModel
 from mvdr_model import Model as MVDRModel
 from post_filter import DAEPostFilter, NullPostFilter
 from utils import fft, Remix
@@ -14,7 +14,8 @@ logging.basicConfig(level=logging.DEBUG)
 
 MODEL_LIB = {
     "beam": MVDRModel,
-    "dolphin": DolphinModel
+    "dolphin": DolphinModel,
+    "null": NullModel
 }
 
 POST_FILTER_LIB = {
@@ -81,7 +82,7 @@ if __name__ == "__main__":
         post_filter_config = {"mode": "null", "fname": "storage/model-dae.h5"}
     try:
         with open(args.model_config, 'r') as file:
-            audio_config = yaml.load(file)
+            model_config = yaml.load(file)
     except:
         model_config = {"mode": "beam", "n": 6, "f": 16000, "speed_of_sound": 340,
             "frame_hop": 128, "frame_len": 1024, "mu_cov": 0.95,

@@ -65,10 +65,11 @@ class DAEPostFilter(BufferMixin([17, 257], np.complex64)):
                "fast": fast_model}
 
     def __init__(self, fname="storage/dae-pf.h5", n_fft=1024):
+        super().__init__()
         self.model = load_model(fname, self._all_imports)
         fft_size = n_fft // 2 + 1
-        assert model.input_shape[-1] == fft_size
-        assert model.output_shape[-1] == fft_size
+        assert self.model.input_shape[-1] == fft_size
+        assert self.model.output_shape[-1] == fft_size
 
     def initialize(self):
         pass
@@ -82,7 +83,7 @@ class DAEPostFilter(BufferMixin([17, 257], np.complex64)):
         return result
 
     @classmethod
-    def train(cls, model_config, train_X, train_Y, valid_ratio=0.1, path_to_save="storage/dae-pf.h5", n_fft=1024):
+    def train(cls, model_config, train_X, train_Y, valid_ratio=0.1, path_to_save="storage/dae-pf.h5", n_fft=512):
         """
         This should create a model from some training script...
         train_X should be padded by 16 from the beginning of the recording...
@@ -120,7 +121,7 @@ def list_dataset(clean, noisy):
     fnames = cleans | noises
     return [os.path.join(clean, x) for x in fnames], [os.path.join(noisy, x) for x in fnames]
 
-def get_dataset(clean, noisy, ratio=0.2, maxlen=1200, n_fft=1024):
+def get_dataset(clean, noisy, ratio=0.2, maxlen=1200, n_fft=512):
     fft_size = n_fft // 2 + 1
     clean, noisy = list_dataset(clean, noisy)
     assert clean, "No data with common filenames"

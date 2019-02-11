@@ -49,3 +49,16 @@ class DolphinModel(BufferMixin([17, 257, 6], np.complex64)):
         pattern = self.acoustic_model(self.buffer)
         ret = (mask * sample[:, 0] + (1 - mask) * pattern * np.exp(1j * np.angle(sample[:, 0]))).reshape(-1, 1)
         return ret
+
+
+class NullModel:
+    """
+    Beamformer is a whole estimation of masks pipeline.
+    Acoustic model is a generative model that filters the speech so it sounds
+    more naturally.
+    """
+    def initialize(self):
+        pass
+
+    def process(self, sample):
+        return sample[:, 0]

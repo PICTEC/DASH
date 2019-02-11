@@ -1,0 +1,3 @@
+mode: dae
+fname: "storage/dae-pf.h5"
+n_fft: 1024

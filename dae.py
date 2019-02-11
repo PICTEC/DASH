@@ -6,6 +6,7 @@ from keras.layers import Input, Lambda, LeakyReLU, Conv2D, TimeDistributed, \
 from keras.models import Model
 from keras.optimizers import Adam
 import numpy as np
+import tensorflow as tf
 import random
 
 from utils import list_sounds, open_sound, stft
@@ -102,7 +103,7 @@ def training(dataset, path):
     save_model(model, path)  # create postfilter object...
 
 
-imports = {"StopOnConvergence": StopOnConvergence}
+imports = {"StopOnConvergence": StopOnConvergence, "tf": tf}
 
 
 if __name__ == "__main__":
