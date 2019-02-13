@@ -4,6 +4,7 @@ import argparse
 import logging
 import time
 import yaml
+from os import listdir
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger("dash.runtime")
@@ -78,6 +79,7 @@ def get_args():
     parser.add_argument('-model_config', help='path to model config yaml file')
     parser.add_argument('-defaults', help='Use if no other flag is used', action='store_true')
     parser.add_argument('-timeit', help='Indicate whether to time everything in the loop', action='store_true')
+    parser.add_argument('-input_from_catalog', help='Process all wav files in given directory')
     args = parser.parse_args()
     if all([not x for x in [args.audio_config, args.post_filter_config, args.model_config, args.defaults]]):
         parser.print_help()
@@ -115,4 +117,15 @@ if __name__ == "__main__":
                           [0.1, -0.19, 0.00000001],
                           [0.2, -0.19, 0.00000001]]}
     TIMEIT = args.timeit
-    main(audio_config, post_filter_config, model_config)
+    if args.input_from_catalog:
+        waves = [file for file in listdir(args.input_from_catalog) if ".wav" in file]
+        for wave in waves:
+            audio_config['input_from_file'] = args.input_from_catalog + '/' + wave
+            audio_config['record_name'] = wave
+            try:
+                print('Processing: ', audio_config['input_from_file'])
+                main(audio_config, post_filter_config, model_config)
+            except:
+                pass
+    else:
+        main(audio_config, post_filter_config, model_config)
