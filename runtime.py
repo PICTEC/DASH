@@ -5,14 +5,15 @@ import logging
 import time
 import yaml
 
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger("dash.runtime")
+
 from audio import Audio
 from model import DolphinModel, NullModel
 from mvdr_model import Model as MVDRModel
 from mono_model import MonoModel
 from post_filter import DAEPostFilter, NullPostFilter
 from utils import fft, Remix
-
-logging.basicConfig(level=logging.DEBUG)
 
 TIMEIT = None
 
@@ -51,21 +52,21 @@ def main(audio_config, post_filter_config, model_config):
             sample = audio.get_input()
             sample = fft(sample, audio.buffer_size, audio.n_in_channels)
             if TIMEIT:
-                logging.info("Acquisition and FFT times {}ms".format(1000 * (time.time() - t)))
+                logger.info("Acquisition and FFT times {}ms".format(1000 * (time.time() - t)))
                 t = time.time()
             sample = model.process(sample)
             if TIMEIT:
-                logging.info("Model time {}ms".format(1000 * (time.time() - t)))
+                logger.info("Model time {}ms".format(1000 * (time.time() - t)))
                 t = time.time()
             sample = post_filter.process(sample)
             if TIMEIT:
-                logging.info("Postfiltering time {}ms".format(1000 * (time.time() - t)))
+                logger.info("Postfiltering time {}ms".format(1000 * (time.time() - t)))
                 t = time.time()
             sample = remixer.process(sample)
             audio.write_to_output(sample)
             if TIMEIT:
-                logging.info("Resampling and output {}ms".format(1000 * (time.time() - t)))
-                logging.info("Iteration runtime {}ms".format(1000 * (time.time() - ft)))
+                logger.info("Resampling and output {}ms".format(1000 * (time.time() - t)))
+                logger.info("Iteration runtime {}ms".format(1000 * (time.time() - ft)))
 
 def get_args():
     parser = argparse.ArgumentParser(description="Showcase of speech enhancement technologies.\n\n"
