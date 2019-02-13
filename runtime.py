@@ -8,6 +8,8 @@ from model import DolphinModel
 from mvdr_model import Model
 from post_filter import PostFilter, NullPostFilter
 from utils import fft, Remix
+import cProfile
+import re
 
 def main(audio_config, post_filter_config, model_config):
     """
@@ -77,4 +79,5 @@ if __name__ == "__main__":
                             [0.1, -0.19, 0.00000001],
                             [0.2, -0.19, 0.00000001]]}
 
+    #cProfile.run(main(audio_config, post_filter_config, model_config))
     main(audio_config, post_filter_config, model_config)
