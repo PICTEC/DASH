@@ -3,7 +3,7 @@ import os
 import scipy.io.wavfile as sio
 import subprocess
 import tempfile
-
+import tensorflow
 
 def BufferMixin(buffer_size=[1, 257], dtype=np.float32):
 
@@ -107,3 +107,11 @@ def list_sounds(src):
             if fname.endswith(".wav") or fname.endswith(".flac"):
                 sources.append(os.path.join(path, fname))
     return sources
+
+def fast_inverse(series):
+    # should be initializable? - maybe this will speed up the inverse
+    arg = tf.placeholder(tf.float32, shape=series.shape)
+    inv = tf.linalg.inv(arg)
+    with K.get_session() as sess:
+        inverse = sess.run(inv, feed_dict={arg:series})
+    return inverse
