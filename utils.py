@@ -5,6 +5,7 @@ import scipy.io.wavfile as sio
 import subprocess
 import tempfile
 import time
+import tensorflow
 
 def BufferMixin(buffer_size=[1, 257], dtype=np.float32):
 
@@ -77,7 +78,6 @@ def fft(x, frame_width, channels):
         WINDOW = np.stack([np.hamming(frame_width) ** 0.5] * channels).T
     return np.fft.rfft(WINDOW * x, axis=0)
 
-
 def ifft(x, frame_width, channels):
     out = np.zeros((frame_width, channels), dtype=np.float32)
     if channels == 1:
@@ -146,3 +146,11 @@ def save_model(model, path):
     model.built = False
     model.loss = None
     model.save(path)
+
+def fast_inverse(series):
+    # should be initializable? - maybe this will speed up the inverse
+    arg = tf.placeholder(tf.float32, shape=series.shape)
+    inv = tf.linalg.inv(arg)
+    with K.get_session() as sess:
+        inverse = sess.run(inv, feed_dict={arg:series})
+    return inverse

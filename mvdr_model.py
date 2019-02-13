@@ -45,7 +45,7 @@ class Model:
             return r_phat
 
         def combine_gccs(self, mat, angles_list, results_array, combs_list, angle_matrix):
-            x = np.linspace(0, 180, 1080)
+            x = np.linspace(0, 180, 180)
             alpha = np.zeros_like(x)
             beta = np.zeros_like(x)
             # for now this is very specific to current geometry
@@ -130,7 +130,7 @@ class Model:
         self.doa = None
         self.mics = [None] * self.num_of_mics
         self.fft_len = int(self.frame_len / 2 + 1)
-        self.spat_cov_mat = np.zeros((self.num_of_mics, self.num_of_mics, self.fft_len), np.complex64)
+        self.spat_cov_mat = np.zeros((self.fft_len, self.num_of_mics, self.num_of_mics), np.complex64)
         for i in range(self.num_of_mics):
             self.mics[i] = self.MicInMatrix(mics_locs[i][0], mics_locs[i][1], mics_locs[i][2])
         self.angle_matrix = np.empty((self.num_of_mics, self.num_of_mics, 3), np.float32)
@@ -148,10 +148,10 @@ class Model:
         self.vad_results = list()
 
     def estimate_covariance_mat(self, fftd):
-        cov_mat = np.zeros((self.num_of_mics, self.num_of_mics, int(self.fft_len)), np.complex64)
+        cov_mat = np.zeros((int(self.fft_len), self.num_of_mics, self.num_of_mics), np.complex64)
         for k in range(0, self.fft_len):
-            cov_mat[:, :, k] = np.outer(np.transpose(fftd[k, :]), np.conjugate(fftd[k, :]))
-            cov_mat[:, :, k] = cov_mat[:, :, k] / np.trace(cov_mat[:, :, k])
+            cov_mat[k, :, :] = np.outer(np.transpose(fftd[k, :]), np.conjugate(fftd[k, :]))
+            cov_mat[k, :, :] = cov_mat[k, :, :] / np.trace(cov_mat[k, :, :])
         return cov_mat
 
 # compute angle between mics around axis
@@ -243,8 +243,11 @@ class Model:
             self.doa.combine_gccs(self, self.angles_list, results_array, list(range(15)),
                                   self.angle_matrix)
 
-        result_fftd = np.zeros((self.fft_len, self.num_of_mics), np.complex64)
+        result_fftd = np.zeros((self.fft_len, self.num_of_mics), dtype=np.complex64)
 
+        d_theta = np.zeros((self.fft_len, self.num_of_mics), dtype=np.complex64)
+
+        spat_cov_mat_inv = np.linalg.inv(self.spat_cov_mat)
         # if vad_res <= VAD_THRESH: # do we replace it with something?
         for k in range(1, self.fft_len):
             # this is VERY specific to current implementation, change it if combine_gccs changes
@@ -261,10 +264,10 @@ class Model:
                               (k * self.frequency / (self.frame_len / 2)))]
             # d_theta = np.zeros(mat.mic)
 
-            spat_cov_mat_inv = np.linalg.inv(self.spat_cov_mat[:, :, k])
+
             # this should be right
-            w_theta = np.matmul(np.conjugate(d_theta), spat_cov_mat_inv) / np.matmul(
-                np.matmul(np.conjugate(d_theta), spat_cov_mat_inv), d_theta)
+            w_theta = np.matmul(np.conjugate(d_theta), spat_cov_mat_inv[k, :, :]) / np.matmul(
+                np.matmul(np.conjugate(d_theta), spat_cov_mat_inv[k, :, :]), d_theta)
             result_fftd[k, :] = w_theta * ffts[k, :]
 
         sig_summed = np.sum(result_fftd, axis=1)
