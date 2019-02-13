@@ -23,7 +23,7 @@ class PlayThread(threading.Thread):
             stored in 'records/outputs/', default set to False
     """
     def __init__(self, p, buffer, hop, sample_rate, channels, id=None, play=True,
-                 record_to_file=False):
+                 record_to_file=False, record_name=None):
         super(PlayThread, self).__init__()
 
         self.buffer = buffer
@@ -49,6 +49,8 @@ class PlayThread(threading.Thread):
             except:
                 pass
             file_name = 'records/outputs/' + time.strftime('%y%m%d_%H%M%S') + '_out.wav'
+            if record_name is not None:
+                file_name = 'records/outputs/' + record_name
             self.f = wave.open(file_name, 'w')
             self.f.setnchannels(channels)
             self.f.setsampwidth(2)
@@ -200,12 +202,13 @@ class Audio:
             stored in 'records/inputs/', default set to False
         save_output (bool, optional): Save played output also to the file
             stored in 'records/outputs/', default set to False
+        record_name (str, optional): Name of the output file
     """
 
     def __init__(self, buffer_size=1024, buffer_hop=128, sample_rate=16000,
                  n_in_channels=6, n_out_channels=1, input_device_id=None,
                  output_device_id=None, input_from_file=None, play_output=True,
-                 save_input=False, save_output=False):
+                 save_input=False, save_output=False, record_name=None):
         self.buffer_size = buffer_size
         self.buffer_hop = buffer_hop
         self.sample_rate = sample_rate
@@ -217,6 +220,7 @@ class Audio:
         self.play_output = play_output
         self.save_input = save_input
         self.save_output = save_output
+        self.record_name = record_name
 
         self.in_queue = Queue(maxsize=buffer_size / buffer_hop)
         self.out_queue = Queue(maxsize=buffer_size / buffer_hop)
@@ -276,7 +280,8 @@ class Audio:
                                      channels=self.n_out_channels,
                                      id=self.output_device_id,
                                      play=self.play_output,
-                                     record_to_file=self.save_output)
+                                     record_to_file=self.save_output,
+                                     record_name=self.record_name)
         self.input_dtype = self.in_thread.input_dtype
         self.in_thread.start()
         self.out_thread.start()
