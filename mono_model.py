@@ -30,5 +30,5 @@ class MonoModel:
         # response /= response.max()
         response = response >= 0.5
         response = response[0, 0, :] * sample[:, 0]
-        return response
+        return response.reshape(-1, 1)
 

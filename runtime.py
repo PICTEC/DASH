@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import argparse
+import gc
 import logging
 import time
 import yaml
@@ -42,10 +43,9 @@ def main(audio_config, post_filter_config, model_config):
     post_filter = POST_FILTER_LIB[pf_mode](**post_filter_config)
     remixer = Remix(buffer_size=audio.buffer_size, buffer_hop=audio.buffer_hop,
                     channels=audio.n_out_channels)
+    model.initialize()
+    post_filter.initialize()
     with audio:
-        audio.open()
-        model.initialize()
-        post_filter.initialize()
         while True:
             if TIMEIT:
                 ft = time.time()
@@ -63,7 +63,7 @@ def main(audio_config, post_filter_config, model_config):
             if TIMEIT:
                 logger.info("Postfiltering time {}ms".format(1000 * (time.time() - t)))
                 t = time.time()
-            sample = remixer.process(sample)
+            sample = remixer.process(sample[:,0])
             audio.write_to_output(sample)
             if TIMEIT:
                 logger.info("Resampling and output {}ms".format(1000 * (time.time() - t)))
@@ -120,12 +120,14 @@ if __name__ == "__main__":
     if args.input_from_catalog:
         waves = [file for file in listdir(args.input_from_catalog) if ".wav" in file]
         for wave in waves:
+            gc.collect()
             audio_config['input_from_file'] = args.input_from_catalog + '/' + wave
             audio_config['record_name'] = wave
             try:
                 print('Processing: ', audio_config['input_from_file'])
-                main(audio_config, post_filter_config, model_config)
-            except:
-                pass
+                main(audio_config.copy(), post_filter_config.copy(), model_config.copy())
+            except Exception as e:
+                print(e)
+            time.sleep(1)
     else:
         main(audio_config, post_filter_config, model_config)

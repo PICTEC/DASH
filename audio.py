@@ -287,6 +287,7 @@ class Audio:
         self.out_thread.start()
 
     def __enter__(self):
+        self.open()
         return self
 
     def close(self):
