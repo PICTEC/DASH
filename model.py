@@ -62,3 +62,17 @@ class NullModel:
 
     def process(self, sample):
         return sample[:, :1]
+
+
+
+# 322 us
+def fast_matrix_update(mask, covmat, signal, update_ratio=0.95):
+    sig = signal.reshape(257,1,-1) @ np.conj(signal).reshape(257, -1, 1)
+    update = update_ratio * covmat + (1 - update_ratio) * sig
+    return (1-mask) * covmat + mask * update
+
+# 1.55ms
+def fast_mvdr(sound, covmat, steervect): 
+    cminv = np.linalg.inv(covmat) 
+    conj = np.conj(steervect).reshape(257,1,-1)
+    return (conj @ cminv @ sound.reshape(257,-1,1)) / (conj @ cminv @ steervect.reshape(257,-1,1)) 
