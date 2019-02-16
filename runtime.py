@@ -53,9 +53,12 @@ def main(audio_config, post_filter_config, model_config):
                 ft = time.time()
                 t = time.time()
             sample = audio.get_input()
+            if TIMEIT:
+                logger.info("Acquisition time {}ms".format(1000 * (time.time() - t)))
+                t = time.time()
             sample = fft(sample, audio.buffer_size, audio.n_in_channels)
             if TIMEIT:
-                logger.info("Acquisition and FFT times {}ms".format(1000 * (time.time() - t)))
+                logger.info("FFT time {}ms".format(1000 * (time.time() - t)))
                 t = time.time()
             sample = model.process(sample)
             if TIMEIT:

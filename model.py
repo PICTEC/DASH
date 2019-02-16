@@ -61,4 +61,4 @@ class NullModel:
         pass
 
     def process(self, sample):
-        return sample[:, 0]
+        return sample[:, :1]

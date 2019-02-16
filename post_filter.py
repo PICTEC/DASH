@@ -55,7 +55,7 @@ def fast_model(n_fft):
     return mdl
 
 
-class DAEPostFilter(BufferMixin([17, 257], np.complex64)):
+class DAEPostFilter(BufferMixin([17, 257, 1], np.complex64)):
     """
     It is assumed that PostFilter preserves phase of original signal.
     """
