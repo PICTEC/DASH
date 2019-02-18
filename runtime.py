@@ -15,11 +15,9 @@ from model import DolphinModel, NullModel
 from mvdr_model import Model as MVDRModel
 from mono_model import MonoModel
 from post_filter import DAEPostFilter, NullPostFilter
-from utils import fft, Remix
+from utils import fft, Remix, AdaptiveGain
 import cProfile
 import re
-
-TIMEIT = None
 
 MODEL_LIB = {
     "beam": MVDRModel,
@@ -33,46 +31,89 @@ POST_FILTER_LIB = {
     "null": NullPostFilter
 }
 
-def main(audio_config, post_filter_config, model_config):
-    """
-    Main processing loop, all processing should be there, all configuration
-    should be elsewhere, training should be done in other files.
-    """
-    audio = Audio(**audio_config)
-    model_mode = model_config.pop("mode")
-    model = MODEL_LIB[model_mode](**model_config)
-    pf_mode = post_filter_config.pop("mode")
-    post_filter = POST_FILTER_LIB[pf_mode](**post_filter_config)
-    remixer = Remix(buffer_size=audio.buffer_size, buffer_hop=audio.buffer_hop,
-                    channels=audio.n_out_channels)
-    model.initialize()
-    post_filter.initialize()
-    with audio:
-        while True:
-            if TIMEIT:
-                ft = time.time()
-                t = time.time()
-            sample = audio.get_input()
-            if TIMEIT:
-                logger.info("Acquisition time {}ms".format(1000 * (time.time() - t)))
-                t = time.time()
-            sample = fft(sample, audio.buffer_size, audio.n_in_channels)
-            if TIMEIT:
-                logger.info("FFT time {}ms".format(1000 * (time.time() - t)))
-                t = time.time()
-            sample = model.process(sample)
-            if TIMEIT:
-                logger.info("Model time {}ms".format(1000 * (time.time() - t)))
-                t = time.time()
-            sample = post_filter.process(sample)
-            if TIMEIT:
-                logger.info("Postfiltering time {}ms".format(1000 * (time.time() - t)))
-                t = time.time()
-            sample = remixer.process(sample[:,0])
-            audio.write_to_output(sample)
-            if TIMEIT:
-                logger.info("Resampling and output {}ms".format(1000 * (time.time() - t)))
-                logger.info("Iteration runtime {}ms".format(1000 * (time.time() - ft)))
+
+class Runtime:
+    def __init__(self):
+        self.configurations = {}
+        self.TIMEIT = None
+        self.audio = None
+        self.play_processed = True
+
+    def send_message(self, in_spec, out_spec, location):
+        """
+        Should accept null locations
+        """
+
+    def check_queue(self):
+        """
+        If message to change model - call rebuild, if flag is changed - change proper variable
+
+        TODO: start/stop messages
+        """
+
+    def rebuild(self, config):
+        audio_config, post_filter_config, model_config = [yaml.load(open(x)) for x in self.configurations[config]]
+        self.audio.close()  # this should clean all buffers
+        self.build(audio_config, post_filter_config, model_config)
+        self.audio.open()
+
+    def build(self, audio_config, post_filter_config, model_config):
+        if self.audio is None:
+            self.audio = Audio(**audio_config)
+        model_mode = model_config.pop("mode")
+        self.model = MODEL_LIB[model_mode](**model_config)
+        pf_mode = post_filter_config.pop("mode")
+        self.post_filter = POST_FILTER_LIB[pf_mode](**post_filter_config)
+        self.model.initialize()
+        self.post_filter.initialize()
+        # TODO: initialize FFT properly
+
+    def main(self, audio_config, post_filter_config, model_config):
+        """
+        Main processing loop, all processing should be there, all configuration
+        should be elsewhere, training should be done in other files.
+        """
+        self.build(audio_config, post_filter_config, model_config)
+        in_gain = AdaptiveGain()
+        out_gain = AdaptiveGain()
+        remixer = Remix(buffer_size=self.audio.buffer_size, buffer_hop=self.audio.buffer_hop,
+                        channels=self.audio.n_out_channels)
+        with self.audio:
+            while True:
+                if self.TIMEIT:
+                    ft = time.time()
+                    t = time.time()
+                sample = self.audio.get_input()
+                sample = in_gain.process(sample)
+                if self.TIMEIT:
+                    logger.info("Acquisition time {}ms".format(1000 * (time.time() - t)))
+                    t = time.time()
+                in_sample = sample = fft(sample, self.audio.buffer_size, self.audio.n_in_channels)
+                if self.TIMEIT:
+                    logger.info("FFT time {}ms".format(1000 * (time.time() - t)))
+                    t = time.time()
+                sample = self.model.process(sample)
+                if self.TIMEIT:
+                    logger.info("Model time {}ms".format(1000 * (time.time() - t)))
+                    t = time.time()
+                out_plot = sample = self.post_filter.process(sample)
+                if self.TIMEIT:
+                    logger.info("Postfiltering time {}ms".format(1000 * (time.time() - t)))
+                    t = time.time()
+                if self.play_processed:
+                    sample = remixer.process(sample[:, 0])
+                    sample = out_gain.process(sample)
+                    self.audio.write_to_output(sample)
+                else:
+                    sample = remixer.process(in_sample[:, 0])
+                    sample = out_gain.process(sample)
+                    self.audio.write_to_output(sample)
+                if self.TIMEIT:
+                    logger.info("Resampling and output {}ms".format(1000 * (time.time() - t)))
+                    logger.info("Iteration runtime {}ms".format(1000 * (time.time() - ft)))
+                self.check_queue()
+                self.send_message(in_sample, out_plot, None)
+
 
 def get_args():
     parser = argparse.ArgumentParser(description="Showcase of speech enhancement technologies.\n\n"
@@ -121,7 +162,6 @@ if __name__ == "__main__":
                           [0.00000001, -0.19, 0.00000001],
                           [0.1, -0.19, 0.00000001],
                           [0.2, -0.19, 0.00000001]]}
-    TIMEIT = args.timeit
     if args.input_from_catalog:
         waves = [file for file in listdir(args.input_from_catalog) if ".wav" in file]
         for wave in waves:
@@ -130,9 +170,13 @@ if __name__ == "__main__":
             audio_config['record_name'] = wave
             try:
                 print('Processing: ', audio_config['input_from_file'])
-                main(audio_config.copy(), post_filter_config.copy(), model_config.copy())
+                runtime = Runtime()
+                runtime.TIMEIT = args.timeit
+                runtime.main(audio_config.copy(), post_filter_config.copy(), model_config.copy())
             except Exception as e:
                 print(e)
             time.sleep(1)
     else:
-        main(audio_config, post_filter_config, model_config)
+        runtime = Runtime()
+        runtime.TIMEIT = args.timeit
+        runtime.main(audio_config, post_filter_config, model_config)
