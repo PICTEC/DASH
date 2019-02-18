@@ -21,10 +21,10 @@ def default_model(n_fft):
     assert n_fft == 257, "Default model cannot handle non-257 fft sizes"
     input_lower = Input((None, 257), name="input_lf")
     layer = Lambda(K.expand_dims)(input_lower)
-    layer = LeakyReLU(0.01)(Conv2D(12, kernel_size=(9, 1), padding='same', activation='linear')(layer))
-    layer = LeakyReLU(0.01)(Conv2D(12, kernel_size=(1, 5), padding='same', activation='linear')(layer))
-    layer = LeakyReLU(0.01)(Conv2D(12, kernel_size=(9, 1), padding='same', activation='linear')(layer))
-    layer = LeakyReLU(0.01)(Conv2D(12, kernel_size=(1, 5), padding='same', activation='linear')(layer))
+    layer = LeakyReLU(0.01)(Conv2D(12, kernel_size=(9, 1), activation='linear')(layer))
+    layer = LeakyReLU(0.01)(Conv2D(12, kernel_size=(1, 5), activation='linear')(layer))
+    layer = LeakyReLU(0.01)(Conv2D(12, kernel_size=(9, 1), activation='linear')(layer))
+    layer = LeakyReLU(0.01)(Conv2D(12, kernel_size=(1, 5), activation='linear')(layer))
     layer = TimeDistributed(Flatten())(layer)
     layer = LeakyReLU(0.01)(Dense(1024, kernel_regularizer=L1L2(l1=1e-5))(layer))
     layer = LeakyReLU(0.01, name='hidden')(Dense(512, kernel_regularizer=L1L2(l1=1e-5))(layer))
@@ -54,6 +54,24 @@ def fast_model(n_fft):
     mdl.summary()
     return mdl
 
+def faster_model(n_fft):
+    """
+    Architecture of a faster model
+    """
+    input_lower = Input((None, n_fft), name="input_lf")
+    layer = LeakyReLU(0.01)(Dense(n_fft, kernel_regularizer=L1L2(l1=1e-5))(input_lower))
+    layer = LeakyReLU(0.01)(Dense(2 * n_fft // 3, kernel_regularizer=L1L2(l1=1e-5))(layer))
+    layer = LeakyReLU(0.01)(Dense(n_fft // 2, kernel_regularizer=L1L2(l1=1e-5))(layer))
+    layer = Lambda(lambda x: K.expand_dims(x))(layer)
+    layer = LeakyReLU(0.01)(Conv2D(12, kernel_size=(17, 1), activation='linear')(layer))
+    layer = TimeDistributed(Flatten())(layer)
+    layer = LeakyReLU(0.01, name='hidden')(Dense(3 * n_fft // 4, kernel_regularizer=L1L2(l1=1e-5))(layer))
+    layer = Dense(n_fft)(layer)
+    mdl = Model(input_lower, layer)
+    mdl.summary()
+    return mdl
+
+
 
 class DAEPostFilter(BufferMixin([17, 257, 1], np.complex64)):
     """
@@ -63,7 +81,8 @@ class DAEPostFilter(BufferMixin([17, 257, 1], np.complex64)):
     _all_imports = {}
     _all_imports.update(dae.imports)
     _models = {"default": default_model,
-               "fast": fast_model}
+               "fast": fast_model,
+               "faster": faster_model}
 
     def __init__(self, fname="storage/dae-pf.h5", n_fft=1024):
         super().__init__()
@@ -142,6 +161,8 @@ def get_dataset(clean, noisy, ratio=0.2, maxlen=1200, n_fft=512):
         cl, ns = open_sound(cl), open_sound(ns)
         assert cl[0] == ns[0]
         cl, ns = cl[1], ns[1]
+        if len(ns.shape) > 1:
+            ns = ns[:, 0]
         spec = -np.log(np.abs(stft(cl, n_fft=n_fft)) ** 2 + 2e-12).T[:maxlen]
         spec = np.pad(spec, ((16, maxlen - spec.shape[0]), (0, 0)), 'constant', constant_values=-np.log(2e-12))
         X[ix, :, :] = spec
@@ -159,6 +180,6 @@ if __name__ == "__main__":
         parser.print_help()
         exit(1)
     [train_X, train_Y], [test_X, test_Y] = get_dataset(args.clean, args.noisy)
-    model_config = "fast"  # to be interchangeable
+    model_config = "default"  # to be interchangeable
     model = DAEPostFilter.train(model_config, train_X, train_Y)
     DAEPostFilter.test(model, test_X, test_Y)
