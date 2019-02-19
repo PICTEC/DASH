@@ -37,9 +37,40 @@ POST_FILTER_LIB = {
 class Runtime:
     def __init__(self):
         self.configurations = {
-            "default": {"name": "Default configuration",
-            "configs": [...]}
+            "lstm": {
+                "name": "Monophonic LSTM Masking",
+                "configs": [
+                    "configs/audio_io.yaml",
+                    "configs/null_postfilter.yaml",
+                    "configs/mono_model.yaml"
+                ]
+            },
+            "postfilter": {
+                "name": "Monophonic Postfilter",
+                "configs": [
+                    "configs/audio_io.yaml",
+                    "configs/postfilter.yaml",
+                    "configs/null_model.yaml"
+                ]
+            },
+            "vad-mvdr": {
+                "name": "VAD + MVDR",
+                "configs": [
+                    "configs/audio_io.yaml",
+                    "configs/null_postfilter.yaml",
+                    "configs/beamformer_config.yaml"
+                ]
+            },
+            "lstm-mvdr": {
+                "name": "Multichannel LSTM + MVDR",
+                "configs": [
+                    "configs/audio_io.yaml",
+                    "configs/null_postfilter.yaml",
+                    "configs/lstm_mvdr_model.yaml"
+                ]
+            }
         }
+        self.default = "lstm"
         self.TIMEIT = None
         self.audio = None
         self.play_processed = True
@@ -107,11 +138,13 @@ class Runtime:
         self.post_filter.initialize()
         # TODO: initialize FFT properly
 
-    def main(self, audio_config, post_filter_config, model_config):
+    def main(self, audio_config=None, post_filter_config=None, model_config=None):
         """
         Main processing loop, all processing should be there, all configuration
         should be elsewhere, training should be done in other files.
         """
+        if audio_config is None or post_filter_config is None or model_config is None:
+            audio_config, post_filter_config, model_config = [yaml.load(open(x)) for x in self.configurations[self.default]["configs"]]
         self.build(audio_config, post_filter_config, model_config)
         in_gain = AdaptiveGain()
         out_gain = AdaptiveGain()
