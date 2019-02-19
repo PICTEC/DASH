@@ -154,3 +154,15 @@ def fast_inverse(series):
     with K.get_session() as sess:
         inverse = sess.run(inv, feed_dict={arg:series})
     return inverse
+
+
+class AdaptiveGain:
+    def __init__(self, level=0.02, update_win=0.975):
+        self.level = level
+        self.current_level = level
+        self.update_win = update_win
+
+    def process(self, sample):
+        power = (sample ** 2).mean()
+        self.current_level = (self.update_win * self.current_level) + (1 - self.update_win) * power
+        return np.sqrt(self.level / self.current_level) * sample

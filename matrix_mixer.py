@@ -38,16 +38,20 @@ class Source:
 class Diffuse:
     def __init__(self, source, sr=16000, amp=1.0):
         if isinstance(source, str):
-            self.sr, self.signal = open_sound(source)
-            self.signal = self.signal.T
+            self.sr, self._signal = open_sound(source)
+            self._signal = self._signal.T
         elif isinstance(source, np.ndarray):
-            self.signal = source
+            self._signal = source
             self.sr = sr
         else:
             raise TypeError("Unsupported argument type {}".format(type(source)))
-        self.signal = self.signal * amp
-        self.channels = self.signal.shape[0]  # TODO: correct index?
+        self.channels = self._signal.shape[0]  # TODO: correct index?
+        self.amp = amp
         print(self.channels)
+
+    @property
+    def signal(self):
+       	return self._signal * (self.amp if type(self.amp) in (float, int) else self.amp())
 
     def __getitem__(self, key):
         return self.__getattribute__(key)
@@ -57,7 +61,7 @@ class Diffuse:
 
     @property
     def length(self):
-        return self.signal.shape[1]
+        return self._signal.shape[1]
 
 
 class Matrix:
@@ -169,7 +173,7 @@ def create_dataset(sources, positions, diffuse, n_src, n_examples, target_fname,
         save_sound(sound, target_fname.format(i), scene.sample_rate)
 
 def by_list(sources, positions, diffuse, n_src, n_examples, target_fname,
-                   n_diff, matrix, bgamp):
+                   n_diff, matrix, bgamp, cleanaswell):
     spec = []
     spec.append("Background amplification: {}, sources per recording: {}".format(
         bgamp, n_src))
@@ -188,9 +192,21 @@ def by_list(sources, positions, diffuse, n_src, n_examples, target_fname,
             scene.add_diffuse(diff)
         sound = scene.render(matrix)
         save_sound(sound, fname, scene.sample_rate)
-        spec.append("{} : {} with diffuse {} ".format(fname,
-            ["{} @ {}".format(x, y) for x, y in zip(batch, batch_pos)],
-            batch_diff))
+        if cleanaswell:
+            scene = Scene()
+            for src, pos in zip(batch, batch_pos):
+                speaker = Source(src)
+                scene.add_source(speaker, pos)
+            sound = scene.render(matrix)
+            save_sound(sound, fname.replace(".wav", "-clean.wav"), scene.sample_rate)
+            spec.append("{} : {} with diffuse {} and corresponding clean".format(fname,
+                ["{} @ {}".format(x, y) for x, y in zip(batch, batch_pos)],
+                batch_diff))
+        else:
+            spec.append("{} : {} with diffuse {} ".format(fname,
+                ["{} @ {}".format(x, y) for x, y in zip(batch, batch_pos)],
+                batch_diff))
+
     with open("spec.txt", "w") as f:
         f.write("\n".join(spec))
 
@@ -211,6 +227,7 @@ def main():
     parser.add_argument("--srclist", help="Instead of randomizing sources, use all of them")
     parser.add_argument("--nexamples", nargs=1, help="Number of examples in the dataset")
     parser.add_argument("--bgamp", nargs=1, help="Amplify diffuse sources by this amount")
+    parser.add_argument("--cleanaswell", nargs=1, help="Generate clean recordings with {}-clean.wav with the same offsets (only during --srclist)")
     args = parser.parse_args()
     if args.pos is None:
         print(parser.format_usage())
@@ -254,12 +271,15 @@ def main():
     ndiff = int(args.ndiff[0]) if args.ndiff else 0
     nsrc = int(args.nsrc[0]) if args.nsrc else 1
     nexamples = int(args.nexamples[0]) if args.nexamples else 10
-    bgamp = float(args.bgamp[0]) if args.bgamp else 1
+    bgamp = (float(args.bgamp[0])  if "-" not in args.bgamp[0] else (
+    	lambda: random.random() * (float(args.bgamp[0].split("-")[1]) - float(args.bgamp[0].split("-")[0])) + float(args.bgamp[0].split("-")[0])
+    )
+    	) if args.bgamp else 1
     try: os.mkdir("dataset")
     except: pass
     if args.srclist:
         by_list(sources, positions, diffuse, nsrc, n_examples=nexamples,
-            target_fname="dataset/{}.wav", n_diff=ndiff, matrix=matrix, bgamp=bgamp)
+            target_fname="dataset/{}.wav", n_diff=ndiff, matrix=matrix, bgamp=bgamp, cleanaswell=(args.cleanaswell is not None))
     else:
         create_dataset(sources, positions, diffuse, nsrc, n_examples=nexamples,
             target_fname="dataset/{}.wav", n_diff=ndiff, matrix=matrix, bgamp=bgamp)
