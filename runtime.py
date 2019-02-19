@@ -2,7 +2,9 @@
 
 import argparse
 import gc
+import json
 import logging
+import paho.mqtt.client as mqtt
 import time
 import yaml
 from os import listdir
@@ -34,15 +36,31 @@ POST_FILTER_LIB = {
 
 class Runtime:
     def __init__(self):
-        self.configurations = {}
+        self.configurations = {
+            "default": {"name": "Default configuration",
+            "configs": [...]}
+        }
         self.TIMEIT = None
         self.audio = None
         self.play_processed = True
+        self.enabled = True
+        self.client = mqtt.Client("dash.runtime")
+        self.client.user_data_set(self)
+        def callback(client, self, message):
+           self.Q.append(message)
+        self.client.on_message = callback
+        self.client.connect('localhost')
+        self.client.subscribe('dash.control')
+        self.client.loop_start()
+        config = {v["name"]: k for k,v in self.configurations.items()}
+        self.client.publish("dash.config", json.dumps(config))
+        self.Q = []
 
     def send_message(self, in_spec, out_spec, location):
-        """
-        Should accept null locations
-        """
+        self.client.publish("dash.in", in_spec.tobytes())
+        self.client.publish("dash.out", out_spec.tobytes())
+        if location is not None:
+            self.client.publish("dash.pos", location)
 
     def check_queue(self):
         """
@@ -50,9 +68,30 @@ class Runtime:
 
         TODO: start/stop messages
         """
+        if self.Q:
+            message = self.Q.pop()
+            if message.startswith("START"):
+                self.enabled = True
+            elif message.startswith("STOP"):
+                self.pause()
+            elif message.startswith("SWITCH"):
+                self.rebuild(message[7:])
+            elif message.startswith("PLAY"):
+                if message[5:] == "IN":
+                    self.play_processed = False
+                elif message[5:] == "OUT":
+                    self.play_processed = True
+
+    def pause(self):
+        self.enabled = False
+        self.audio.close()
+        while not self.enabled:
+            self.check_queue()
+            time.sleep(0)
+        self.audio.open()
 
     def rebuild(self, config):
-        audio_config, post_filter_config, model_config = [yaml.load(open(x)) for x in self.configurations[config]]
+        audio_config, post_filter_config, model_config = [yaml.load(open(x)) for x in self.configurations[config]["configs"]]
         self.audio.close()  # this should clean all buffers
         self.build(audio_config, post_filter_config, model_config)
         self.audio.open()
