@@ -157,12 +157,16 @@ def fast_inverse(series):
 
 
 class AdaptiveGain:
-    def __init__(self, level=0.02, update_win=0.975):
+    def __init__(self, level=0.02, update_win=0.975, max_gain=3):
         self.level = level
         self.current_level = level
         self.update_win = update_win
+        self.max_gain = max_gain
 
     def process(self, sample):
         power = (sample ** 2).mean()
         self.current_level = (self.update_win * self.current_level) + (1 - self.update_win) * power
-        return np.sqrt(self.level / self.current_level) * sample
+        gain = np.sqrt(self.level / self.current_level)
+        if gain > self.max_gain:
+            gain = self.max_gain
+        return gain * sample
