@@ -179,7 +179,7 @@ class GUI(QMainWindow):
         control_inout_play_layout = QHBoxLayout()
 
         logo = QLabel(self.centralWidget)
-        logo_pixmap = QPixmap('logo.png')
+        logo_pixmap = QPixmap('bin/logo.png')
         logo.setPixmap(logo_pixmap.scaled(280, 210))
 
         label_in_out_play = QLabel(self.centralWidget)
@@ -240,7 +240,7 @@ class GUI(QMainWindow):
         #self.localization.heightForWidth(1)
 
         logo = QLabel(self.centralWidget)
-        logo_pixmap = QPixmap('logo (dark bg) [tg bottom].png')
+        logo_pixmap = QPixmap('bin/logo_big.png')
         logo.setPixmap(logo_pixmap.scaled(560, 420))
 
         localization_plot_layout.addStretch()
