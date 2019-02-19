@@ -166,7 +166,7 @@ class GUI(QMainWindow):
         self.radio_out_play = QRadioButton('Play output', self.centralWidget)
         self.radio_out_play.setChecked(True)
         self.radio_out_play.setStyleSheet('color: white')
-        self.radio_out_play.clicked.connect(self.play_input)
+        self.radio_out_play.clicked.connect(self.plat_output)
         self.group_in_out_play.addButton(self.radio_in_play)
         self.group_in_out_play.addButton(self.radio_out_play)
 
