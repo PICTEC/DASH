@@ -226,7 +226,6 @@ class Audio:
         self.out_queue = Queue(maxsize=buffer_size / buffer_hop)
         self.buffer = np.zeros((buffer_size, n_in_channels), dtype=np.float32)
 
-        self.p = pyaudio.PyAudio()
         self.in_thread = None
         self.out_thread = None
         self.input_dtype = None
@@ -265,6 +264,7 @@ class Audio:
     def open(self):
         """Create and start threads
         """
+        self.p = pyaudio.PyAudio()
         self.in_thread = ReadThread(p=self.p,
                                     buffer=self.in_queue,
                                     hop=self.buffer_hop,
