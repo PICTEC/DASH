@@ -367,7 +367,7 @@ class GUI(QMainWindow):
         self.config = json.loads(config)
 
         self.combo_config.clear()
-        for k in config.keys():
+        for k in self.config.keys():
             self.combo_config.addItem(k)
 
     def publish_config(self, text):
