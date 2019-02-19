@@ -102,7 +102,7 @@ def output_spectrogram_callback(client, userdata, message):
     userdata.put_output_spectrogram(np.fromstring(message.payload, dtype=np.complex64))
 
 def localization_callback(client, userdata, message):
-    userdata.put_localization(struct('f', message.payload))
+    userdata.put_localization(float(message.payload))
 
 def configuration_callback(client, userdata, message):
     userdata.config_change(message.payload)
@@ -380,7 +380,7 @@ class GUI(QMainWindow):
             self.combo_config.addItem(k)
 
     def publish_config(self, text):
-        self.client.publish('dash.config', 'SWITCH_'+self.config[text])
+        self.client.publish('dash.control', 'SWITCH_'+self.config[text])
 
 
 if __name__ == '__main__':

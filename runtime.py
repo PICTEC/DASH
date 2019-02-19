@@ -5,6 +5,7 @@ import gc
 import json
 import logging
 import paho.mqtt.client as mqtt
+import random
 import time
 import yaml
 from os import listdir
@@ -40,7 +41,7 @@ class Runtime:
             "lstm": {
                 "name": "Monophonic LSTM Masking",
                 "configs": [
-                    "configs/audio_io.yaml",
+                    "configs/input_config.yaml",
                     "configs/null_postfilter.yaml",
                     "configs/mono_model.yaml"
                 ]
@@ -48,7 +49,7 @@ class Runtime:
             "postfilter": {
                 "name": "Monophonic Postfilter",
                 "configs": [
-                    "configs/audio_io.yaml",
+                    "configs/input_config.yaml",
                     "configs/postfilter.yaml",
                     "configs/null_model.yaml"
                 ]
@@ -56,7 +57,7 @@ class Runtime:
             "vad-mvdr": {
                 "name": "VAD + MVDR",
                 "configs": [
-                    "configs/audio_io.yaml",
+                    "configs/input_config.yaml",
                     "configs/null_postfilter.yaml",
                     "configs/beamformer_config.yaml"
                 ]
@@ -64,7 +65,7 @@ class Runtime:
             "lstm-mvdr": {
                 "name": "Multichannel LSTM + MVDR",
                 "configs": [
-                    "configs/audio_io.yaml",
+                    "configs/input_config.yaml",
                     "configs/null_postfilter.yaml",
                     "configs/lstm_mvdr_model.yaml"
                 ]
@@ -92,6 +93,8 @@ class Runtime:
         self.client.publish("dash.out", out_spec.tobytes())
         if location is not None:
             self.client.publish("dash.pos", location)
+        else:
+            self.client.publish("dash.pos", random.random())
 
     def check_queue(self):
         """
@@ -100,17 +103,18 @@ class Runtime:
         TODO: start/stop messages
         """
         if self.Q:
-            message = self.Q.pop()
-            if message.startswith("START"):
+            message = self.Q.pop().payload
+            logger.info(message)
+            if message.startswith(b"START"):
                 self.enabled = True
-            elif message.startswith("STOP"):
+            elif message.startswith(b"STOP"):
                 self.pause()
-            elif message.startswith("SWITCH"):
-                self.rebuild(message[7:])
-            elif message.startswith("PLAY"):
-                if message[5:] == "IN":
+            elif message.startswith(b"SWITCH"):
+                self.rebuild(message[7:].decode("ascii"))
+            elif message.startswith(b"PLAY"):
+                if message[5:] == b"IN":
                     self.play_processed = False
-                elif message[5:] == "OUT":
+                elif message[5:] == b"OUT":
                     self.play_processed = True
 
     def pause(self):
