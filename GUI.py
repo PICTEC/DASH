@@ -12,6 +12,7 @@ pg.setConfigOption('background', '#423b6a')
 
 import time
 import json
+import struct
 
 
 class SpectrogramWidget(pg.PlotWidget):
