@@ -126,6 +126,7 @@ class GUI(QMainWindow):
         self.client.connect('localhost')
         self.client.subscribe('dash.in')
         self.client.subscribe('dash.out')
+        self.client.subscribe('dash.pos')
         self.client.subscribe('dash.config')
 
         self.client.loop_start()
