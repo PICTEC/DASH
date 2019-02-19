@@ -101,7 +101,7 @@ def output_spectrogram_callback(client, userdata, message):
     userdata.put_output_spectrogram(np.fromstring(message.payload, dtype=np.complex64))
 
 def localization_callback(client, userdata, message):
-    userdata.put_localization(message.payload)
+    userdata.put_localization(struct('f', message.payload))
 
 def configuration_callback(client, userdata, message):
     userdata.config_change(message.payload)
