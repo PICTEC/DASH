@@ -364,7 +364,7 @@ class GUI(QMainWindow):
         """
 
     def config_change(self, config):
-        self.config = config
+        self.config = json.load(config)
 
         self.combo_config.clear()
         for k in config.keys():
