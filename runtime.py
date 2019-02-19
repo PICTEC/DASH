@@ -55,11 +55,11 @@ class Runtime:
                 ]
             },
             "vad-mvdr": {
-                "name": "VAD + MVDR",
+                "name": "VAD + MVDR (TBD)",
                 "configs": [
                     "configs/input_config.yaml",
                     "configs/null_postfilter.yaml",
-                    "configs/beamformer_config.yaml"
+                    "configs/vad_mvdr_config.yaml"
                 ]
             },
             "lstm-mvdr": {
@@ -67,7 +67,7 @@ class Runtime:
                 "configs": [
                     "configs/input_config.yaml",
                     "configs/null_postfilter.yaml",
-                    "configs/lstm_mvdr_model.yaml"
+                    "configs/beamformer_model.yaml"
                 ]
             }
         }
