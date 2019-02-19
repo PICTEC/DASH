@@ -128,12 +128,17 @@ class Model:
         self.frame_len = frame_len
         self.frequency = f
         self.mu_cov = mu_cov
+        self.psd_tracking_constant_speech = 0.975
+        self.psd_tracking_constant_noise = 0.975
         self.frame = 0
         self.vad = None
         self.doa = None
         self.mics = [None] * self.num_of_mics
         self.fft_len = int(self.frame_len / 2 + 1)
-        self.spat_cov_mat = np.zeros((self.fft_len, self.num_of_mics, self.num_of_mics), np.complex64)
+        self.eigenvector = np.ones((self.fft_len, self.num_of_mics), dtype=np.float32)/self.num_of_mics
+        self.psd_speech = np.random.rand((self.fft_len, self._num_of_mics, self.num_of_mics), dtype=np.float32)
+        self.psd_noise = np.random.rand((self.fft_len, self._num_of_mics, self.num_of_mics), dtype=np.float32)
+        self.spat_cov_mat = np.zeros((self.fft_len, self.num_of_mics, self.num_of_mics), dtype=np.complex64)
         for i in range(self.num_of_mics):
             self.mics[i] = self.MicInMatrix(mics_locs[i][0], mics_locs[i][1], mics_locs[i][2])
         self.angle_matrix = np.empty((self.num_of_mics, self.num_of_mics, 3), np.float32)
@@ -160,6 +165,23 @@ class Model:
         conj = np.conj(steervect).reshape(self.fft_len, 1, -1)
         return (conj @ cminv @ sound.reshape(self.fft_len, -1, 1)) / (
                 conj @ cminv @ steervect.reshape(self.fft_len, -1, 1))
+
+    def update_psds(self, fft_vector, speech_mask):
+        # which PSDs will be updated
+        toUpd = speech_mask == 1
+        self.psd_speech[toUpd] = self.psd_tracking_constant_speech * self.psd_speech[toUpd] + \
+                                 (1 - self.psd_tracking_constant_speech) * \
+                                 np.dot(fft_vector[toUpd, :], fft_vector[toUpd, :].conj().T)
+
+        toUpd = np.invert(toUpd)
+        self.psd_noise[toUpd] = self.psd_tracking_constant_noise * self.psd_noise[toUpd] + \
+                                (1 - self.psd_tracking_constant_noise) * \
+                                np.dot(fft_vector[toUpd, :], fft_vector[toUpd, :].conj().T)
+
+    def update_ev_by_power_iteration(self):
+        unnormalized_eigenvector = np.einsum('...ij,...j->...i', self.psd_speech, self.eigenvector)
+        self.eigenvector = unnormalized_eigenvector / \
+                      np.sqrt(np.sum(np.abs(unnormalized_eigenvector)) ** 2 / self.num_of_mics)
 
     # compute angle between mics around axis
     def compute_ang(self, mic_1, mic_2):
@@ -220,36 +242,39 @@ class Model:
         self.doa = self.DOA()
 
     def process(self, ffts):
-        vad_res = self.vad.vad(ffts[:, 0])  # TODO change this to VAD mask
+        vad_mask = self.vad.vad(ffts[:, 0])  # TODO change this to VAD mask
 
-        self.spat_cov_mat = self.estimate_covariance_mat(vad_res, ffts)
+        self.spat_cov_mat = self.estimate_covariance_mat(vad_mask, ffts)
 
-        num_cores = multiprocessing.cpu_count()
-        results_array = Parallel(n_jobs=num_cores) \
-            (delayed(self.doa.gcc_phat)(ffts[:, comb[0]], ffts[:, comb[1]],
-                                        (self.max_delay_matrix[(comb[0], comb[1])] + 1))
-             for comb in self.all_combs)
+        self.update_psds(ffts, vad_mask)
+        self.update_ev_by_power_iteration()
 
-        if vad_res <= self.vad.vad_thresh:
-            self.doa.combine_gccs(self, self.angles_list, results_array, list(range(15)),
-                                  self.angle_matrix)
+        # num_cores = multiprocessing.cpu_count()
+        # results_array = Parallel(n_jobs=num_cores) \
+        #     (delayed(self.doa.gcc_phat)(ffts[:, comb[0]], ffts[:, comb[1]],
+        #                                 (self.max_delay_matrix[(comb[0], comb[1])] + 1))
+        #      for comb in self.all_combs)
 
-        d_theta = np.ones((self.fft_len, self.num_of_mics), dtype=np.complex64)
-        factor_1 = -1j * 2 * np.pi
-        for k in range(1, self.fft_len):
-            factor_2 = (k * self.frequency / (self.frame_len / 2))
-            d_theta[k, :] = [1,
-                             np.exp(factor_1 * self.doa.time_delay(self.speed_of_sound, self.mics[1], self.doa.azimuth,
-                                                                   self.doa.elevation) / factor_2),
-                             np.exp(factor_1 * self.doa.time_delay(self.speed_of_sound, self.mics[2], self.doa.azimuth,
-                                                                   self.doa.elevation) / factor_2),
-                             np.exp(factor_1 * self.doa.time_delay(self.speed_of_sound, self.mics[3], self.doa.azimuth,
-                                                                   self.doa.elevation) / factor_2),
-                             np.exp(factor_1 * self.doa.time_delay(self.speed_of_sound, self.mics[4], self.doa.azimuth,
-                                                                   self.doa.elevation) / factor_2),
-                             np.exp(factor_1 * self.doa.time_delay(self.speed_of_sound, self.mics[5], self.doa.azimuth,
-                                                                   self.doa.elevation) / factor_2)]
+        # if vad_res <= self.vad.vad_thresh:
+        #     self.doa.combine_gccs(self, self.angles_list, results_array, list(range(15)),
+        #                           self.angle_matrix)
 
-        result_fftd = self.fast_mvdr(ffts, d_theta)
+        # d_theta = np.ones((self.fft_len, self.num_of_mics), dtype=np.complex64)
+        # factor_1 = -1j * 2 * np.pi
+        # for k in range(1, self.fft_len):
+        #     factor_2 = (k * self.frequency / (self.frame_len / 2))
+        #     d_theta[k, :] = [1,
+        #                      np.exp(factor_1 * self.doa.time_delay(self.speed_of_sound, self.mics[1], self.doa.azimuth,
+        #                                                            self.doa.elevation) / factor_2),
+        #                      np.exp(factor_1 * self.doa.time_delay(self.speed_of_sound, self.mics[2], self.doa.azimuth,
+        #                                                            self.doa.elevation) / factor_2),
+        #                      np.exp(factor_1 * self.doa.time_delay(self.speed_of_sound, self.mics[3], self.doa.azimuth,
+        #                                                            self.doa.elevation) / factor_2),
+        #                      np.exp(factor_1 * self.doa.time_delay(self.speed_of_sound, self.mics[4], self.doa.azimuth,
+        #                                                            self.doa.elevation) / factor_2),
+        #                      np.exp(factor_1 * self.doa.time_delay(self.speed_of_sound, self.mics[5], self.doa.azimuth,
+        #                                                            self.doa.elevation) / factor_2)]
+
+        result_fftd = self.fast_mvdr(ffts, self.eigenvector)
 
         return result_fftd.reshape(-1, 1)
