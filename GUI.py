@@ -24,7 +24,7 @@ class SpectrogramWidget(pg.PlotWidget):
         self.img = pg.ImageItem()
         self.addItem(self.img)
 
-        self.img_array = np.zeros((1500, int(frame_width/2+1)))
+        self.img_array = np.zeros((750, int(frame_width/2+1)))
 
         pos = np.array([0., 0.5,  1.])
         color = np.array([(255,255,255,0), (19,134,111,255), (255,0,0,255)], dtype=np.ubyte)
@@ -130,10 +130,8 @@ class GUI(QMainWindow):
 
         self.client.loop_start()
 
-        #self.in_spectrogram_buffer = np.zeros((257))
-        #self.in_spectrogram_i = 0
-        #self.in_spectrogram_hop = int(1024/128)
-
+        self.in_spec_i = 5
+        self.out_spec_i = 5
 
     def initUI(self):
         self.setStyleSheet('background-color: #423b6a;')
@@ -304,13 +302,22 @@ class GUI(QMainWindow):
 
         Let's assume the input is single channel of shape (fft_size,)
         """
-        self.in_spectrogram_signal.emit(np.abs(bin[:0]))
+        if self.in_spec_i == 5:
+            b = np.reshape(bin, (257,8))
+            self.in_spectrogram_signal.emit(np.abs(b[:,0]))
+            self.in_spec_i = 0
+        else:
+            self.in_spec_i += 1
 
     def put_output_spectrogram(self, bin):
         """
         Same as above, but for the other window
         """
-        self.out_spectrogram_signal.emit(np.abs(bin))
+        if self.out_spec_i == 5:
+            self.out_spectrogram_signal.emit(np.abs(bin))
+            self.out_spec_i = 0
+        else:
+            self.out_spec_i += 1
 
     @property
     def inputs(self, value):
