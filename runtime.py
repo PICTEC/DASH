@@ -53,7 +53,7 @@ class Runtime:
         self.client.subscribe('dash.control')
         self.client.loop_start()
         config = {v["name"]: k for k,v in self.configurations.items()}
-        self.client.publish("dash.config", json.dumps(config))
+        self.client.publish("dash.config", json.dumps(config), retain=True)
         self.Q = []
 
     def send_message(self, in_spec, out_spec, location):
