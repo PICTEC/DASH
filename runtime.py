@@ -2,7 +2,10 @@
 
 import argparse
 import gc
+import json
 import logging
+import paho.mqtt.client as mqtt
+import random
 import time
 import yaml
 from os import listdir
@@ -34,15 +37,64 @@ POST_FILTER_LIB = {
 
 class Runtime:
     def __init__(self):
-        self.configurations = {}
+        self.configurations = {
+            "lstm": {
+                "name": "Monophonic LSTM Masking",
+                "configs": [
+                    "configs/input_config.yaml",
+                    "configs/null_postfilter.yaml",
+                    "configs/mono_model.yaml"
+                ]
+            },
+            "postfilter": {
+                "name": "Monophonic Postfilter",
+                "configs": [
+                    "configs/input_config.yaml",
+                    "configs/postfilter.yaml",
+                    "configs/null_model.yaml"
+                ]
+            },
+            "vad-mvdr": {
+                "name": "VAD + MVDR (TBD)",
+                "configs": [
+                    "configs/input_config.yaml",
+                    "configs/null_postfilter.yaml",
+                    "configs/vad_mvdr_config.yaml"
+                ]
+            },
+            "lstm-mvdr": {
+                "name": "Multichannel LSTM + MVDR",
+                "configs": [
+                    "configs/input_config.yaml",
+                    "configs/null_postfilter.yaml",
+                    "configs/beamformer_model.yaml"
+                ]
+            }
+        }
+        self.default = "lstm"
         self.TIMEIT = None
         self.audio = None
         self.play_processed = True
+        self.enabled = True
+        self.client = mqtt.Client("dash.runtime")
+        self.client.user_data_set(self)
+        def callback(client, self, message):
+           self.Q.append(message)
+        self.client.on_message = callback
+        self.client.connect('localhost')
+        self.client.subscribe('dash.control')
+        self.client.loop_start()
+        config = {v["name"]: k for k,v in self.configurations.items()}
+        self.client.publish("dash.config", json.dumps(config), retain=True)
+        self.Q = []
 
     def send_message(self, in_spec, out_spec, location):
-        """
-        Should accept null locations
-        """
+        self.client.publish("dash.in", in_spec.tobytes())
+        self.client.publish("dash.out", out_spec.tobytes())
+        if location is not None:
+            self.client.publish("dash.pos", location)
+        else:
+            self.client.publish("dash.pos", random.random())
 
     def check_queue(self):
         """
@@ -50,9 +102,31 @@ class Runtime:
 
         TODO: start/stop messages
         """
+        if self.Q:
+            message = self.Q.pop().payload
+            logger.info(message)
+            if message.startswith(b"START"):
+                self.enabled = True
+            elif message.startswith(b"STOP"):
+                self.pause()
+            elif message.startswith(b"SWITCH"):
+                self.rebuild(message[7:].decode("ascii"))
+            elif message.startswith(b"PLAY"):
+                if message[5:] == b"IN":
+                    self.play_processed = False
+                elif message[5:] == b"OUT":
+                    self.play_processed = True
+
+    def pause(self):
+        self.enabled = False
+        self.audio.close()
+        while not self.enabled:
+            self.check_queue()
+            time.sleep(0)
+        self.audio.open()
 
     def rebuild(self, config):
-        audio_config, post_filter_config, model_config = [yaml.load(open(x)) for x in self.configurations[config]]
+        audio_config, post_filter_config, model_config = [yaml.load(open(x)) for x in self.configurations[config]["configs"]]
         self.audio.close()  # this should clean all buffers
         self.build(audio_config, post_filter_config, model_config)
         self.audio.open()
@@ -68,11 +142,13 @@ class Runtime:
         self.post_filter.initialize()
         # TODO: initialize FFT properly
 
-    def main(self, audio_config, post_filter_config, model_config):
+    def main(self, audio_config=None, post_filter_config=None, model_config=None):
         """
         Main processing loop, all processing should be there, all configuration
         should be elsewhere, training should be done in other files.
         """
+        if audio_config is None or post_filter_config is None or model_config is None:
+            audio_config, post_filter_config, model_config = [yaml.load(open(x)) for x in self.configurations[self.default]["configs"]]
         self.build(audio_config, post_filter_config, model_config)
         in_gain = AdaptiveGain()
         out_gain = AdaptiveGain()

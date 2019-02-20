@@ -75,16 +75,16 @@ def fft(x, frame_width, channels):
     if FRAMEW != frame_width:
         FRAMEW = frame_width
         CHANNELS = channels
-        WINDOW = np.stack([np.hamming(frame_width) ** 0.5] * channels).T
-    return np.fft.rfft(WINDOW * x, axis=0)
+        WINDOW = np.stack([np.hamming(frame_width).astype(np.float32) ** 0.5] * channels).T
+    return np.fft.rfft(WINDOW * x, axis=0).astype(np.complex64)
 
 def ifft(x, frame_width, channels):
     out = np.zeros((frame_width, channels), dtype=np.float32)
     if channels == 1:
-        out =  np.hamming(frame_width)**0.5 *np.fft.irfft(x)
+        out =  np.hamming(frame_width).astype(np.float32) ** 0.5 *np.fft.irfft(x)
     else:
         for ch in range(channels):
-            out[:, ch] = np.fft.irfft(x[:, ch]) * np.hamming(frame_width) ** 0.5
+            out[:, ch] = np.fft.irfft(x[:, ch]).astype(np.float32) * np.hamming(frame_width).astype(np.float32) ** 0.5
     return out
 
 
@@ -154,3 +154,19 @@ def fast_inverse(series):
     with K.get_session() as sess:
         inverse = sess.run(inv, feed_dict={arg:series})
     return inverse
+
+
+class AdaptiveGain:
+    def __init__(self, level=0.02, update_win=0.975, max_gain=3):
+        self.level = level
+        self.current_level = level
+        self.update_win = update_win
+        self.max_gain = max_gain
+
+    def process(self, sample):
+        power = (sample ** 2).mean()
+        self.current_level = (self.update_win * self.current_level) + (1 - self.update_win) * power
+        gain = np.sqrt(self.level / self.current_level)
+        if gain > self.max_gain:
+            gain = self.max_gain
+        return gain * sample

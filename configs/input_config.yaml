@@ -5,6 +5,6 @@ n_in_channels: 8
 n_out_channels: 1
 input_device_id: NULL
 output_device_id: NULL
-input_from_file: /home/zantyr/DASH/dataset/1000.wav
-save_input: TRUE
-save_output: TRUE
+input_from_file: NULL
+save_input: NULL
+save_output: NULL
