@@ -262,6 +262,6 @@ if __name__ == "__main__":
                 print(e)
             time.sleep(1)
     else:
-        runtime = Runtime()
+        runtime = Runtime(True)
         runtime.TIMEIT = args.timeit
         runtime.main(audio_config, post_filter_config, model_config)

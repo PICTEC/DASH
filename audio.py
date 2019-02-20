@@ -347,13 +347,14 @@ class AudioCntl:
         self.client.subscribe('dash.audio.out')
         self.client.loop_start()
         self.working = True
-        self.shape = (self.buffer_size, self.n_out_channels)
+        self.shape = (self.audio.buffer_size, self.audio.n_out_channels)
 
     def run(self):
         while self.working:
             time.sleep(0)
 
     def process(self, client, _, message):
+        print("Received message")
         command, payload = message[:8], message[8:]
         if command == b"OPEN    ":
             self.audio.open()
@@ -368,7 +369,8 @@ class AudioCntl:
         elif command == b"OFF     ":
             self.working = False
         else:
-            pass # Unknown command sent
+            print("Unknown command")
+        print("Message accepted")
 
 
 class FastAudio:
@@ -386,16 +388,21 @@ class FastAudio:
         self.client.subscribe('dash.audio.in')
         self.client.loop_start()
         self.Q = deque()
-        self.shape = (self.buffer_size, self.n_in_channels)
+        self.shape = (kwargs['buffer_size'], kwargs['n_in_channels'])
+        self.buffer_size = kwargs['buffer_size']
+        self.buffer_hop = kwargs['buffer_hop']
+        self.n_out_channels = kwargs['n_out_channels']
 
     def open(self):
+        print("PUBLISHING OPEN")
         self.client.publish("dash.audio.ctl", b"OPEN    ")
+        print("PUBLISHED OPEN")
 
     def close(self):
         self.client.publish("dash.audio.ctl", b"CLOSE   ")
 
     def __enter__(self):
-        self.client.publish("dash.audio.ctl", b"OPEN    ")
+        self.open()
         return self
 
     def __exit__(self, type, value, tb):
@@ -406,7 +413,9 @@ class FastAudio:
         self.client.publish("dash.audio.out", b"WRITE   " + payload)
 
     def get_input(self):
+        print("Publishing READ")
         self.client.publish("dash.audio.ctl", b"READ    ")
+        print("Published READ")
         ret = None
         while ret is None:
             if self.Q:
@@ -416,6 +425,7 @@ class FastAudio:
         return ret
 
     def process(self, client, _, message):
+        print("FastAudio received message")
         arr = np.frombuffer(message, dtype=np.float32).reshape(self.shape)
         self.Q.append(arr)
 
