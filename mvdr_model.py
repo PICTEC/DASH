@@ -168,13 +168,14 @@ class Model:
 
     def update_psds(self, fft_vector, speech_mask):
         # which PSDs will be updated
-        toUpd = speech_mask == 1
-        self.psd_speech[toUpd] = self.psd_tracking_constant_speech * self.psd_speech[toUpd] + \
+        toUpd = speech_mask[:, 0, :].T
+        selected_in_3d = np.einsum('ij,ik->ijk', toUpd, toUpd) == 1
+        self.psd_speech[selected_in_3d] = self.psd_tracking_constant_speech * self.psd_speech[selected_in_3d] + \
                                  (1 - self.psd_tracking_constant_speech) * \
                                  np.dot(fft_vector[toUpd, :], fft_vector[toUpd, :].conj().T)
 
-        toUpd = np.invert(toUpd)
-        self.psd_noise[toUpd] = self.psd_tracking_constant_noise * self.psd_noise[toUpd] + \
+        selected_in_3d = np.invert(selected_in_3d)
+        self.psd_noise[selected_in_3d] = self.psd_tracking_constant_noise * self.psd_noise[selected_in_3d] + \
                                 (1 - self.psd_tracking_constant_noise) * \
                                 np.dot(fft_vector[toUpd, :], fft_vector[toUpd, :].conj().T)
 
