@@ -21,6 +21,7 @@ class PlayThread(threading.Thread):
         play (bool, optional): Play output to the speakers
         record_to_file (bool, optional): Save played output also to the file
             stored in 'records/outputs/', default set to False
+        record_name (str, optional): Name of the saved file
     """
     def __init__(self, p, buffer, hop, sample_rate, channels, id=None, play=True,
                  record_to_file=False, record_name=None):
@@ -222,13 +223,23 @@ class Audio:
         self.save_output = save_output
         self.record_name = record_name
 
-        self.in_queue = Queue(maxsize=buffer_size / buffer_hop)
-        self.out_queue = Queue(maxsize=buffer_size / buffer_hop)
+        #self.in_queue = Queue(maxsize=buffer_size / buffer_hop)
+        #self.out_queue = Queue(maxsize=buffer_size / buffer_hop)
+        self.in_queue = Queue(maxsize=3)
+        self.out_queue = Queue(maxsize=3)
         self.buffer = np.zeros((buffer_size, n_in_channels), dtype=np.float32)
 
         self.in_thread = None
         self.out_thread = None
         self.input_dtype = None
+
+        self._in_arr_flat = np.empty((self.buffer_hop * self.n_in_channels), dtype=np.float32)
+        self._in_arr_flat_int = np.empty((self.buffer_hop * self.n_in_channels), dtype=np.int16)
+        self._in_arr = np.empty((self.buffer_hop, self.n_in_channels), dtype=np.float32)
+        self._in_ret = np.empty((self.buffer_size, self.n_in_channels), dtype=np.float32)
+
+        self._out_arr = np.empty((self.buffer_hop, self.n_out_channels), dtype=np.int16)
+        self._out_interleaved = self._out_arr.flatten()
 
     def write_to_output(self, arr):
         """Decode values and pass it to the buffer
@@ -236,10 +247,10 @@ class Audio:
         Args:
             arr (np.array of shape(buffer_hop, n_out_channels)): Frames to be played
         """
-        assert arr.shape == (self.buffer_hop, self.n_out_channels) or arr.shape == (self.buffer_hop,), 'incorect shape of the output'
-        arr = (arr*(2**15)).astype(np.int16)
-        interleaved = arr.flatten()
-        self.out_queue.put(interleaved.tobytes())
+        assert arr.shape == (self.buffer_hop, self.n_out_channels) or arr.shape == (self.buffer_hop,), 'incorrect shape of the output'
+        self._out_arr = (arr*32768).astype(np.int16)
+        self._out_interleaved = self._out_arr.flatten()
+        self.out_queue.put(self._out_interleaved.tobytes())
 
     def get_input(self):
         """Get values from the buffer, encode it and return
@@ -248,18 +259,21 @@ class Audio:
             np.array of the shape (buffer_size, n_in_channels)
         """
         b = self.in_queue.get()
-        arr = np.fromstring(b, dtype=self.input_dtype)
-        assert arr.shape[0] > 0, 'The recording has ended'
+        assert len(b) > 0, 'The recording has ended'
         if self.input_dtype == np.int16:
-            arr = arr.astype(np.float32) / 2**15
+            self._in_arr_flat_int = np.fromstring(b, dtype=np.int16)
+            self._in_arr_flat = self._in_arr_flat_int.astype(np.float32) / 32768
+        else:
+            self._in_arr_flat = np.fromstring(b, dtype=self.input_dtype)
+
         try:
-            arr = np.reshape(arr, (self.buffer_hop, self.n_in_channels))
+            self._in_arr = np.reshape(self._in_arr_flat, (self.buffer_hop, self.n_in_channels))
         except:
             raise RuntimeError('Incorrect shape of the input')
         self.buffer = np.roll(self.buffer, -self.buffer_hop, axis=0)
-        self.buffer[-self.buffer_hop:,:] = arr
-        ret = np.copy(self.buffer)
-        return ret
+        self.buffer[-self.buffer_hop:,:] = self._in_arr
+        self._in_ret = np.copy(self.buffer)
+        return self._in_ret
 
     def open(self):
         """Create and start threads
