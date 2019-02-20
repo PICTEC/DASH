@@ -220,7 +220,7 @@ class GUI(QMainWindow):
         spectrogram_layout.addSpacing(50)
         spectrogram_layout.addWidget(label_input_spectrogram)
         spectrogram_layout.addWidget(self.input_spectrogram)
-        spectrogram_layout.addStretch()
+        spectrogram_layout.addSpacing(20)
         spectrogram_layout.addWidget(label_output_spectrogram)
         spectrogram_layout.addWidget(self.output_spectrogram)
         spectrogram_layout.addSpacing(50)
@@ -246,14 +246,18 @@ class GUI(QMainWindow):
 
         localization_plot_layout.addStretch()
         localization_plot_layout.addWidget(self.localization)
+        localization_plot_layout.addStretch()
 
+        localization_logo_layout.addStretch()
         localization_logo_layout.addWidget(logo)
         localization_logo_layout.addStretch()
 
+        localization_layout.addSpacing(50)
         localization_layout.addWidget(label_localization)
         localization_layout.addLayout(localization_plot_layout)
-        localization_layout.addStretch()
+        #localization_layout.addStretch()
         localization_layout.addLayout(localization_logo_layout)
+        #localization_layout.addStretch()
 
         return localization_layout
 
