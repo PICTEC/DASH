@@ -25,15 +25,15 @@ class SpectrogramWidget(pg.PlotWidget):
         self.img = pg.ImageItem()
         self.addItem(self.img)
 
-        self.img_array = np.zeros((750, int(frame_width/2+1)))
+        self.img_array = np.zeros((750, int(frame_width/2+1))) - 255
 
         pos = np.array([0., 0.5,  1.])
         color = np.array([(255,255,255,0), (19,134,111,255), (255,0,0,255)], dtype=np.ubyte)
         cmap = pg.ColorMap(pos, color)
-        lut = cmap.getLookupTable(0.0, 1, 50)
+        lut = cmap.getLookupTable(0.0, 1, 255)
 
         self.img.setLookupTable(lut)
-        self.img.setLevels([0,255])
+        self.img.setLevels([-255,255])
 
         freq = np.arange((frame_width/2)+1)/(frame_width/sample_rate)
         yscale = 1.0/(self.img_array.shape[1]/freq[-1])
@@ -44,9 +44,7 @@ class SpectrogramWidget(pg.PlotWidget):
         self.show()
 
     def update(self, chunk):
-        chunk = chunk / self.frame_width
         chunk = 20 * np.log10(chunk)
-        chunk = np.abs(chunk)
         self.img_array = np.roll(self.img_array, -1, 0)
         self.img_array[-1:] = chunk
 
@@ -306,7 +304,7 @@ class GUI(QMainWindow):
         """
         if self.in_spec_i == 5:
             b = np.reshape(bin, (257,8))
-            self.in_spectrogram_signal.emit(np.abs(b[:,0]))
+            self.in_spectrogram_signal.emit(np.absolute(b[:,0]/16000))
             self.in_spec_i = 0
         else:
             self.in_spec_i += 1
@@ -316,7 +314,7 @@ class GUI(QMainWindow):
         Same as above, but for the other window
         """
         if self.out_spec_i == 5:
-            self.out_spectrogram_signal.emit(np.abs(bin))
+            self.out_spectrogram_signal.emit(np.absolute(bin/16000))
             self.out_spec_i = 0
         else:
             self.out_spec_i += 1
