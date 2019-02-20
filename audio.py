@@ -8,7 +8,7 @@ import time
 import wave
 from os import makedirs
 
-class PlayThread(threading.Thread):
+class Play:
     """Thread which pass data stored in the buffer to the speakers
 
     Args:
@@ -23,16 +23,11 @@ class PlayThread(threading.Thread):
             stored in 'records/outputs/', default set to False
         record_name (str, optional): Name of the saved file
     """
-    def __init__(self, p, buffer, hop, sample_rate, channels, id=None, play=True,
+    def __init__(self, p, hop, sample_rate, channels, id=None, play=True,
                  record_to_file=False, record_name=None):
-        super(PlayThread, self).__init__()
-
-        self.buffer = buffer
         self.hop = hop
         self.sample_rate = sample_rate
         self.channels = channels
-        self.daemon = True
-        self.stopped = False
         self.record_to_file = record_to_file
         self.play = play
 
@@ -57,43 +52,22 @@ class PlayThread(threading.Thread):
             self.f.setsampwidth(2)
             self.f.setframerate(sample_rate)
 
-    def run(self):
-        """Method representing the thread’s activity
-
-        Wait until buffer is full, than play frames from the buffer until
-        thread is stopped.
-        """
-        while not self.buffer.full():
-            pass
-
-        while not self.stopped:
-            if not self.buffer.empty():
-                frames = self.buffer.get()
-                if self.play:
-                    self.stream.write(frames=frames)
-                if self.record_to_file:
-                    self.f.writeframesraw(frames)
-            else:
-                time.sleep(0)
+    def put(self, frames):
+        if self.play:
+            self.stream.write(frames=frames)
+        if self.record_to_file:
+            self.f.writeframesraw(frames)
 
     def stop(self):
         """Stop thread, play what's left in the buffer and close stream
         """
-        self.stopped = True
-
-        while not self.buffer.empty():
-            frames = self.buffer.get()
-            if self.play:
-                self.stream.write(frames)
-            if self.record_to_file:
-                self.f.writeframesraw(frames)
         if self.play:
             self.stream.close()
         if self.record_to_file:
             self.f.writeframes(b'')
             self.f.close()
 
-class ReadThread(threading.Thread):
+class Read:
     """Thread which read data from microphones and pass it to the buffer
 
     Args:
@@ -108,16 +82,11 @@ class ReadThread(threading.Thread):
         record_to_file (bool, optional): Save played output also to the file
             stored in 'records/outputs/', default set to False
     """
-    def __init__(self, p, buffer, hop, sample_rate, channels, id=None,
+    def __init__(self, p, hop, sample_rate, channels, id=None,
                  from_file=None, record_to_file=True):
-        super(ReadThread, self).__init__()
-
-        self.buffer = buffer
         self.hop = hop
         self.sample_rate = sample_rate
         self.channels = channels
-        self.daemon = True
-        self.stopped = False
         self.record_to_file = record_to_file
         self.from_file = from_file
 
@@ -149,33 +118,19 @@ class ReadThread(threading.Thread):
             self.f.setsampwidth(4)
             self.f.setframerate(sample_rate)
 
-    def run(self):
-        """Method representing the thread’s activity
-
-        Get data from microphones or from file and put it to the buffer
-        """
+    def get(self):
         if self.from_file is None:
-            while not self.stopped:
-                t = time.time()
-                input = self.stream.read(self.hop)
-                self.buffer.put(input)
-                if self.record_to_file:
-                    self.f.writeframesraw(input)
-                print("ACQ", time.time() - t)
+            input = self.stream.read(self.hop)
+            if self.record_to_file:
+                self.f.writeframesraw(input)
+            return input
         else:
-            while not self.stopped:
-                t = time.time()
-                input = self.wf.readframes(self.hop)
-                print("ACQuisition", time.time() - t)
-                t = time.time()
-                self.buffer.put(input)
-                print("Putting to Queue ACQ", time.time() - t)
+            input = self.wf.readframes(self.hop)
+            return input
 
     def stop(self):
         """Stop thread and close stream
         """
-        self.stopped = True
-        time.sleep(self.hop / self.sample_rate)
         if self.from_file is None:
             self.stream.stop_stream()
             self.stream.close()
@@ -229,14 +184,10 @@ class Audio:
         self.save_output = save_output
         self.record_name = record_name
 
-        #self.in_queue = Queue(maxsize=buffer_size / buffer_hop)
-        #self.out_queue = Queue(maxsize=buffer_size / buffer_hop)
-        self.in_queue = Queue(maxsize=3)
-        self.out_queue = Queue(maxsize=3)
         self.buffer = np.zeros((buffer_size, n_in_channels), dtype=np.float32)
 
-        self.in_thread = None
-        self.out_thread = None
+        self.in_class = None
+        self.out_class = None
         self.input_dtype = None
 
         self._in_arr_flat = np.empty((self.buffer_hop * self.n_in_channels), dtype=np.float32)
@@ -256,7 +207,7 @@ class Audio:
         assert arr.shape == (self.buffer_hop, self.n_out_channels) or arr.shape == (self.buffer_hop,), 'incorrect shape of the output'
         self._out_arr = (arr*32768).astype(np.int16)
         self._out_interleaved = self._out_arr.flatten()
-        self.out_queue.put(self._out_interleaved.tobytes())
+        self.out_class.put(self._out_interleaved.tobytes())
 
     def get_input(self):
         """Get values from the buffer, encode it and return
@@ -264,7 +215,7 @@ class Audio:
         Retruns:
             np.array of the shape (buffer_size, n_in_channels)
         """
-        b = self.in_queue.get()
+        b = self.in_class.get()
         assert len(b) > 0, 'The recording has ended'
         if self.input_dtype == np.int16:
             self._in_arr_flat_int = np.fromstring(b, dtype=np.int16)
@@ -285,16 +236,14 @@ class Audio:
         """Create and start threads
         """
         self.p = pyaudio.PyAudio()
-        self.in_thread = ReadThread(p=self.p,
-                                    buffer=self.in_queue,
+        self.in_class = Read(p=self.p,
                                     hop=self.buffer_hop,
                                     sample_rate=self.sample_rate,
                                     channels=self.n_in_channels,
                                     id=self.input_device_id,
                                     from_file=self.input_from_file,
                                     record_to_file=self.save_input)
-        self.out_thread = PlayThread(p=self.p,
-                                     buffer=self.out_queue,
+        self.out_class = Play(p=self.p,
                                      hop=self.buffer_hop,
                                      sample_rate=self.sample_rate,
                                      channels=self.n_out_channels,
@@ -302,9 +251,7 @@ class Audio:
                                      play=self.play_output,
                                      record_to_file=self.save_output,
                                      record_name=self.record_name)
-        self.input_dtype = self.in_thread.input_dtype
-        self.in_thread.start()
-        self.out_thread.start()
+        self.input_dtype = self.in_class.input_dtype
 
     def __enter__(self):
         self.open()
@@ -313,10 +260,10 @@ class Audio:
     def close(self):
         """Close all threads
         """
-        self.in_thread.stop()
-        self.out_thread.stop()
-        self.in_thread = None
-        self.out_thread = None
+        self.in_class.stop()
+        self.out_class.stop()
+        self.in_class = None
+        self.out_class = None
         self.p.terminate()
 
     def __exit__(self, type, value, tb):
@@ -330,7 +277,7 @@ if __name__ == "__main__":
     """
     audio = Audio(n_in_channels=2, n_out_channels=1)
     audio.open()
-    for _ in range(1000):
+    for _ in range(10000):
         input = audio.get_input()
         audio.write_to_output(input[:128,1])
     audio.close()
