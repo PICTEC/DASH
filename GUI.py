@@ -210,9 +210,11 @@ class GUI(QMainWindow):
 
         label_input_spectrogram = QLabel(self.centralWidget)
         label_input_spectrogram.setText("<font color='White'> Input spectrogram </font")
+        label_input_spectrogram.setAlignment(QtCore.Qt.AlignCenter)
         self.input_spectrogram = SpectrogramWidget(512, 128, 16000)
         label_output_spectrogram = QLabel(self.centralWidget)
         label_output_spectrogram.setText("<font color='White'> Output spectrogram </font")
+        label_output_spectrogram.setAlignment(QtCore.Qt.AlignCenter)
         self.output_spectrogram = SpectrogramWidget(512, 128, 16000)
 
         spectrogram_layout.addSpacing(50)
@@ -232,6 +234,7 @@ class GUI(QMainWindow):
 
         label_localization = QLabel(self.centralWidget)
         label_localization.setText("<font color='White'> Speaker localization </font")
+        label_localization.setAlignment(QtCore.Qt.AlignCenter)
         self.localization = LocalizationWidget()
         self.localization.hideAxis('bottom')
         self.localization.hideAxis('left')
