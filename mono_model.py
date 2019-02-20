@@ -10,7 +10,7 @@ logger = logging.getLogger("dash.mono_model")
 class MonoModel:
     def __init__(self, path):
         logger.info("Loading TF model")
-        self.model = keras.models.load_model("storage/sr-lstm-repaired.h5")
+        self.model = keras.models.load_model(path)
         logger.info("TF model loaded")
 
     def initialize(self):
@@ -23,14 +23,10 @@ class MonoModel:
     def process(self, sample):
         prep = sample[:, 0].reshape(1, 1, -1)
         prep = np.abs(prep)
-        # response = self.model.predict_function._callable_fn([prep])[0]
+        t = time.time()
         response = self.session.run(self.output,
             feed_dict={self.input: prep})
         response = np.clip(response, 0, None)
-        # response -= response.min()
-        # response /= response.max()
-        # response -= 0.3
-        # response /= 1.8
-        # response = response >= 0.5
+        print(1000 * (time.time() - t))
         response = response[0, 0, :] * sample[:, 0]
         return response.reshape(-1, 1)

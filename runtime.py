@@ -160,7 +160,7 @@ class Runtime:
                     ft = time.time()
                     t = time.time()
                 sample = self.audio.get_input()
-                sample = in_gain.process(sample)
+                # sample = in_gain.process(sample)
                 if self.TIMEIT:
                     logger.info("Acquisition time {}ms".format(1000 * (time.time() - t)))
                     t = time.time()
@@ -178,11 +178,11 @@ class Runtime:
                     t = time.time()
                 if self.play_processed:
                     sample = remixer.process(sample[:, 0])
-                    sample = out_gain.process(sample)
+                    # sample = out_gain.process(sample)
                     self.audio.write_to_output(sample)
                 else:
                     sample = remixer.process(in_sample[:, 0])
-                    sample = out_gain.process(sample)
+                    # sample = out_gain.process(sample)
                     self.audio.write_to_output(sample)
                 if self.TIMEIT:
                     logger.info("Resampling and output {}ms".format(1000 * (time.time() - t)))

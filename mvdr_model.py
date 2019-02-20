@@ -2,12 +2,10 @@ import itertools
 import keras
 import keras.backend as K
 import math
-import matplotlib.pyplot as plt
-import matplotlib.mlab as mlab
-import multiprocessing
 import numpy as np
-import scipy.io.wavfile as sio
-import scipy.fftpack as sfft
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 
 
 class Model:
@@ -23,7 +21,8 @@ class Model:
         self.psd_tracking_constant_noise = 0.975 + 0j
         self.frame = 0
         self.fft_len = int(self.frame_len / 2 + 1)
-        self.eigenvector = np.ones((self.fft_len, self.num_of_mics), dtype=np.float32)/self.num_of_mics
+        self.eigenvector = np.random.rand(self.fft_len, self.num_of_mics)/self.num_of_mics +\
+                               np.random.rand(self.fft_len, self.num_of_mics)/self.num_of_mics*1j
         self.psd_speech = np.random.random((self.fft_len, self.num_of_mics, self.num_of_mics)).astype(np.float32)
         self.psd_noise = np.random.random((self.fft_len, self.num_of_mics, self.num_of_mics)).astype(np.float32)
         self.spat_cov_mat = np.zeros((self.fft_len, self.num_of_mics, self.num_of_mics), dtype=np.complex64)
@@ -44,15 +43,18 @@ class Model:
         toUpd = speech_mask > self.mask_thresh
         self.psd_speech[toUpd] = self.psd_tracking_constant_speech * self.psd_speech[toUpd] + \
                                  (1 - self.psd_tracking_constant_speech) * \
-                                 np.einsum('ij,ki->ijk', fft_vector, fft_vector.conj().T)[toUpd]
+                                 np.einsum('ij,ik->ijk', fft_vector, fft_vector.conj())[toUpd]
 
         toUpd = np.invert(toUpd)
         self.psd_noise[toUpd] = self.psd_tracking_constant_noise * self.psd_noise[toUpd] + \
                                 (1 - self.psd_tracking_constant_noise) * \
-                                np.einsum('ij,ki->ijk', fft_vector, fft_vector.conj().T)[toUpd]
+                                np.einsum('ij,ik->ijk', fft_vector, fft_vector.conj())[toUpd]
 
     def update_ev_by_power_iteration(self):
-        unnormalized_eigenvector = np.einsum('...ij,...j->...i', self.psd_speech, self.eigenvector)
+        unnormalized_eigenvector = np.einsum('...ij,...j->...i', self.psd_speech, self.eigenvector, dtype=np.complex128)
+        print(self.psd_speech.dtype)
+        print(self.eigenvector.dtype)
+        print(unnormalized_eigenvector.dtype)
         self.eigenvector = unnormalized_eigenvector / \
                       np.sqrt(np.sum(np.abs(unnormalized_eigenvector)) ** 2 / self.num_of_mics)
 
@@ -64,7 +66,7 @@ class Model:
         self.session = K.get_session()
 
     def process(self, ffts):
-        prep = ffts.T.reshape(8, 1, -1)
+        prep = ffts.T.reshape(self.num_of_mics, 1, -1)
         prep = np.abs(prep)
         response = self.session.run(self.output,
             feed_dict={self.input: prep})
@@ -73,5 +75,7 @@ class Model:
         self.spat_cov_mat = self.estimate_covariance_mat(vad_mask, ffts)
         self.update_psds(ffts, vad_mask)
         self.update_ev_by_power_iteration()
+        # print(self.eigenvector[:,0])
         result_fftd = self.fast_mvdr(ffts, self.eigenvector)
+        print(result_fftd)
         return result_fftd.reshape(-1, 1)

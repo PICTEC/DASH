@@ -132,11 +132,11 @@ class ReadThread(threading.Thread):
         else:
             self.wf = wave.open(from_file, 'rb')
             if self.wf.getsampwidth() == 2:
-            	self.input_dtype = np.int16
+                self.input_dtype = np.int16
             elif self.wf.getsampwidth() == 4:
-            	self.input_dtype = np.float32
+                self.input_dtype = np.float32
             else:
-            	raise ValueError("Incorrect width of samples in the file")
+                raise ValueError("Incorrect width of samples in the file")
 
         if record_to_file:
             try:
@@ -156,14 +156,20 @@ class ReadThread(threading.Thread):
         """
         if self.from_file is None:
             while not self.stopped:
+                t = time.time()
                 input = self.stream.read(self.hop)
                 self.buffer.put(input)
                 if self.record_to_file:
                     self.f.writeframesraw(input)
+                print("ACQ", time.time() - t)
         else:
             while not self.stopped:
+                t = time.time()
                 input = self.wf.readframes(self.hop)
+                print("ACQuisition", time.time() - t)
+                t = time.time()
                 self.buffer.put(input)
+                print("Putting to Queue ACQ", time.time() - t)
 
     def stop(self):
         """Stop thread and close stream
