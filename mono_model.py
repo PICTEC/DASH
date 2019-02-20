@@ -26,7 +26,7 @@ class MonoModel:
         # response = self.model.predict_function._callable_fn([prep])[0]
         response = self.session.run(self.output,
             feed_dict={self.input: prep})
-        response = np.clip(response, 0, None) ** 3
+        response = np.clip(response, 0, None)
         # response -= response.min()
         # response /= response.max()
         # response -= 0.3
@@ -34,4 +34,3 @@ class MonoModel:
         # response = response >= 0.5
         response = response[0, 0, :] * sample[:, 0]
         return response.reshape(-1, 1)
-
