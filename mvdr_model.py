@@ -42,17 +42,14 @@ class Model:
     def update_psds(self, fft_vector, speech_mask):
         # which PSDs will be updated
         toUpd = speech_mask > self.mask_thresh
-        print(toUpd.shape)
-        toUpd = speech_mask[:, 0, :].T
-        selected_in_3d = np.einsum('ij,ik->ijk', toUpd, toUpd) == 1
-        self.psd_speech[selected_in_3d] = self.psd_tracking_constant_speech * self.psd_speech[selected_in_3d] + \
+        self.psd_speech[toUpd] = self.psd_tracking_constant_speech * self.psd_speech[toUpd] + \
                                  (1 - self.psd_tracking_constant_speech) * \
-                                 np.dot(fft_vector[toUpd, :], fft_vector[toUpd, :].conj().T)
+                                 np.einsum('ij,ki->ijk', fft_vector, fft_vector.conj().T)[toUpd]
 
-        selected_in_3d = np.invert(selected_in_3d)
-        self.psd_noise[selected_in_3d] = self.psd_tracking_constant_noise * self.psd_noise[selected_in_3d] + \
+        toUpd = np.invert(toUpd)
+        self.psd_noise[toUpd] = self.psd_tracking_constant_noise * self.psd_noise[toUpd] + \
                                 (1 - self.psd_tracking_constant_noise) * \
-                                np.dot(fft_vector[toUpd, :], fft_vector[toUpd, :].conj().T)
+                                np.einsum('ij,ki->ijk', fft_vector, fft_vector.conj().T)[toUpd]
 
     def update_ev_by_power_iteration(self):
         unnormalized_eigenvector = np.einsum('...ij,...j->...i', self.psd_speech, self.eigenvector)
