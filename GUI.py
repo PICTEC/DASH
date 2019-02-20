@@ -235,7 +235,6 @@ class GUI(QMainWindow):
         label_localization = QLabel(self.centralWidget)
         label_localization.setText("<font color='White'> Speaker localization </font")
         label_localization.setAlignment(QtCore.Qt.AlignCenter)
-        label_localization.setAlignment(QtCore.Qt.AlignBottom)
         self.localization = LocalizationWidget()
         self.localization.hideAxis('bottom')
         self.localization.hideAxis('left')
@@ -247,14 +246,13 @@ class GUI(QMainWindow):
 
         localization_plot_layout.addStretch()
         localization_plot_layout.addWidget(self.localization)
-        localization_plot_layout.addStretch()
 
         localization_logo_layout.addWidget(logo)
         localization_logo_layout.addStretch()
 
         localization_layout.addWidget(label_localization)
         localization_layout.addLayout(localization_plot_layout)
-        #localization_layout.addStretch()
+        localization_layout.addStretch()
         localization_layout.addLayout(localization_logo_layout)
 
         return localization_layout
