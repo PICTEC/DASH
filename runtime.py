@@ -13,7 +13,7 @@ from os import listdir
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger("dash.runtime")
 
-from audio import Audio
+from audio import Audio, FastAudio
 from model import DolphinModel, NullModel
 from mvdr_model import Model as MVDRModel
 from mono_model import MonoModel
@@ -36,7 +36,7 @@ POST_FILTER_LIB = {
 
 
 class Runtime:
-    def __init__(self):
+    def __init__(self, use_fast_audio = False):
         self.configurations = {
             "small-lstm": {
                 "name": "Monophonic LSTM Masking - v1",
@@ -82,6 +82,7 @@ class Runtime:
         self.default = "lstm"
         self.TIMEIT = None
         self.audio = None
+        self.audio_type = FastAudio if use_fast_audio else Audio
         self.play_processed = True
         self.enabled = True
         self.client = mqtt.Client("dash.runtime")
@@ -141,7 +142,7 @@ class Runtime:
 
     def build(self, audio_config, post_filter_config, model_config):
         if self.audio is None:
-            self.audio = Audio(**audio_config)
+            self.audio = self.audio_type(**audio_config)
         model_mode = model_config.pop("mode")
         self.model = MODEL_LIB[model_mode](**model_config)
         pf_mode = post_filter_config.pop("mode")

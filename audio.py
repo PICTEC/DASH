@@ -1,12 +1,19 @@
 #!/usr/bin/env python3
 
+import atexit
+from collections import deque
+import json
 import numpy as np
+from os import makedirs
+import paho.mqtt.client as mqtt
 import pyaudio
 from queue import Queue
+import subprocess
+import sys
 import threading
 import time
 import wave
-from os import makedirs
+
 
 class PlayThread(threading.Thread):
     """Thread which pass data stored in the buffer to the speakers
@@ -156,20 +163,20 @@ class ReadThread(threading.Thread):
         """
         if self.from_file is None:
             while not self.stopped:
-                t = time.time()
+                # t = time.time()
                 input = self.stream.read(self.hop)
                 self.buffer.put(input)
                 if self.record_to_file:
                     self.f.writeframesraw(input)
-                print("ACQ", time.time() - t)
+                # print("ACQ", time.time() - t)
         else:
             while not self.stopped:
-                t = time.time()
+                # t = time.time()
                 input = self.wf.readframes(self.hop)
-                print("ACQuisition", time.time() - t)
-                t = time.time()
+                # print("ACQuisition", time.time() - t)
+                # t = time.time()
                 self.buffer.put(input)
-                print("Putting to Queue ACQ", time.time() - t)
+                # print("Putting to Queue ACQ", time.time() - t)
 
     def stop(self):
         """Stop thread and close stream
@@ -184,6 +191,7 @@ class ReadThread(threading.Thread):
         if self.record_to_file:
             self.f.writeframes(b'')
             self.f.close()
+
 
 class Audio:
     """Class to record and play data
@@ -324,13 +332,112 @@ class Audio:
         return self.close()
 
 
+
+
+class AudioCntl:
+    """
+    Controller of the Audio Server
+    """
+    def __init__(self, **kwargs):
+        self.audio = Audio(**kwargs)
+        self.client = mqtt.Client("dash.audio")
+        self.client.on_message = self.process
+        self.client.connect('localhost')
+        self.client.subscribe('dash.audio.ctl')
+        self.client.subscribe('dash.audio.out')
+        self.client.loop_start()
+        self.working = True
+        self.shape = (self.buffer_size, self.n_out_channels)
+
+    def run(self):
+        while self.working:
+            time.sleep(0)
+
+    def process(self, client, _, message):
+        command, payload = message[:8], message[8:]
+        if command == b"OPEN    ":
+            self.audio.open()
+        elif command == b"CLOSE   ":
+            self.audio.close()
+        elif command == b"READ    ":
+            in_bytes = self.audio.get_input().tobytes()
+            self.client.publish("dash.audio.in", in_bytes)
+        elif command == b"WRITE   ":
+            sound = np.frombuffer(payload, dtype=np.float32).reshape(self.shape)
+            self.audio.write_to_output(sound)
+        elif command == b"OFF     ":
+            self.working = False
+        else:
+            pass # Unknown command sent
+
+
+class FastAudio:
+    def __init__(self, **kwargs):
+        """
+        Create subprocess - ensure it is opened and works properly
+        Subprocess
+        """
+        config = json.dumps(kwargs)
+        self.process = subprocess.Popen([sys.executable, "./audio.py", "--start", config])  # TODO: add path so it ain't breaking from other folders
+        atexit.register(self.exit_this)
+        self.client = mqtt.Client("dash.audio.runtime")
+        self.client.on_message = self.process
+        self.client.connect('localhost')
+        self.client.subscribe('dash.audio.in')
+        self.client.loop_start()
+        self.Q = deque()
+        self.shape = (self.buffer_size, self.n_in_channels)
+
+    def open(self):
+        self.client.publish("dash.audio.ctl", b"OPEN    ")
+
+    def close(self):
+        self.client.publish("dash.audio.ctl", b"CLOSE   ")
+
+    def __enter__(self):
+        self.client.publish("dash.audio.ctl", b"OPEN    ")
+        return self
+
+    def __exit__(self, type, value, tb):
+        self.client.publish("dash.audio.ctl", b"CLOSE   ")
+
+    def write_to_output(self, arr):
+        payload = arr.tobytes()
+        self.client.publish("dash.audio.out", b"WRITE   " + payload)
+
+    def get_input(self):
+        self.client.publish("dash.audio.ctl", b"READ    ")
+        ret = None
+        while ret is None:
+            if self.Q:
+                ret = self.Q.popleft()
+            else:
+                time.sleep(0)
+        return ret
+
+    def process(self, client, _, message):
+        arr = np.frombuffer(message, dtype=np.float32).reshape(self.shape)
+        self.Q.append(arr)
+
+    def exit_this(self):
+        self.client.publish("dash.audio.ctl", b"OFF     ")
+
+
 if __name__ == "__main__":
     """
     Simple test of whether the class works - a single-channel loopback recording
     """
-    audio = Audio(n_in_channels=2, n_out_channels=1)
-    audio.open()
-    for _ in range(1000):
-        input = audio.get_input()
-        audio.write_to_output(input[:128,1])
-    audio.close()
+    if len(sys.argv) == 1 and sys.argv[1] != "--start":
+        audio = Audio(n_in_channels=2, n_out_channels=1)
+        audio.open()
+        for _ in range(1000):
+            input = audio.get_input()
+            audio.write_to_output(input[:128,1])
+        audio.close()
+    elif len(sys.argv) > 2 and sys.argv[1] == "--start":
+        config = sys.argv[2]
+        config = json.loads(config)
+        ac = AudioCntl(**config)
+        ac.run()
+    else:
+        print("Incorrect run mode")
