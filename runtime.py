@@ -38,12 +38,20 @@ POST_FILTER_LIB = {
 class Runtime:
     def __init__(self):
         self.configurations = {
-            "lstm": {
-                "name": "Monophonic LSTM Masking",
+            "small-lstm": {
+                "name": "Monophonic LSTM Masking - v1",
                 "configs": [
                     "configs/input_config.yaml",
                     "configs/null_postfilter.yaml",
-                    "configs/mono_model.yaml"
+                    "configs/1_layer.yaml"
+                ]
+            },
+            "lstm": {
+                "name": "Monophonic LSTM Masking - v2",
+                "configs": [
+                    "configs/input_config.yaml",
+                    "configs/null_postfilter.yaml",
+                    "configs/3_layer.yaml"
                 ]
             },
             "postfilter": {
