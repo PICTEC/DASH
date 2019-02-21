@@ -39,7 +39,7 @@ class Model:
         self.psd_speech[toUpd] = self.psd_tracking_constant_speech * self.psd_speech[toUpd] + \
                                  (1 - self.psd_tracking_constant_speech) * \
                                  np.einsum('...i,...j->...ij', fft_vector, fft_vector.conj())[toUpd]
-        
+        # print(self.psd_speech[2,:,:])
         toUpd = speech_mask < self.mask_thresh_speech
         self.psd_noise[toUpd] = self.psd_tracking_constant_noise * self.psd_noise[toUpd] + \
                                 (1 - self.psd_tracking_constant_noise) * \
@@ -61,10 +61,10 @@ class Model:
         prep = np.abs(prep)
         response = self.session.run(self.output,
             feed_dict={self.input: prep})
-        vad_mask = np.transpose(np.clip(response, 0, None) ** 1.5, [2, 0, 1])
-        vad_mask = vad_mask * vad_mask.transpose([0, 2, 1])
-        self.update_psds(ffts, vad_mask)
-        self.update_ev_by_power_iteration()
+        # vad_mask = np.transpose(np.clip(response, 0, None) ** 1.5, [2, 0, 1])
+        # vad_mask = vad_mask * vad_mask.transpose([0, 2, 1])
+        # self.update_psds(ffts, vad_mask)
+        # self.update_ev_by_power_iteration()
         d_theta = np.ones((self.fft_len, self.num_of_mics), dtype=np.complex64)
         factor_1 = -1j * 2 * np.pi
         for k in range(1, self. fft_len):
@@ -77,6 +77,11 @@ class Model:
                 np.exp(factor_1 * 0 / factor_2),
                 np.exp(factor_1 * 0 / factor_2),
                 np.exp(factor_1 * 0 / factor_2)]
-        result_fftd = self.fast_mvdr(ffts, d_theta)
+        # result_fftd = self.fast_mvdr(ffts, d_theta)
         # result_fftd = self.fast_mvdr(ffts, self.eigenvector)
+        result_fftd = (ffts * d_theta).sum(1).reshape(-1,1)/self.num_of_mics
         return result_fftd.reshape(-1, 1)
+
+    def delay_and_sum(self, ftts):
+        steering_vector = ...
+        return (steering_vecotr * ftts).sum(1).reshape(-1, 1)
