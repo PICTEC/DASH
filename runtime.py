@@ -41,7 +41,7 @@ class Runtime:
             "small-lstm": {
                 "name": "Monophonic LSTM Masking - v1",
                 "configs": [
-                    "configs/input_config.yaml",
+                    "configs/small_hop_input_config.yaml",
                     "configs/null_postfilter.yaml",
                     "configs/1_layer.yaml"
                 ]
@@ -49,7 +49,7 @@ class Runtime:
             "lstm": {
                 "name": "Monophonic LSTM Masking - v2",
                 "configs": [
-                    "configs/input_config.yaml",
+                    "configs/small_hop_input_config.yaml",
                     "configs/null_postfilter.yaml",
                     "configs/3_layer.yaml"
                 ]
@@ -62,6 +62,7 @@ class Runtime:
                     "configs/null_model.yaml"
                 ]
             },
+            """
             "vad-mvdr": {
                 "name": "VAD + MVDR (TBD)",
                 "configs": [
@@ -70,10 +71,11 @@ class Runtime:
                     "configs/vad_mvdr_config.yaml"
                 ]
             },
+            """
             "lstm-mvdr": {
                 "name": "Multichannel LSTM + MVDR",
                 "configs": [
-                    "configs/input_config.yaml",
+                    "configs/large_hop_input_config.yaml",
                     "configs/null_postfilter.yaml",
                     "configs/beamformer_model.yaml"
                 ]

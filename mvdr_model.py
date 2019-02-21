@@ -19,13 +19,13 @@ class Model:
         self.frequency = f
         self.mu_cov = float(mu_cov)
         self.psd_tracking_constant_speech = 0.5 + 0j
-        self.psd_tracking_constant_noise = 0.95 + 0j
+        self.psd_tracking_constant_noise = 0.99 + 0j
         self.frame = 0
         self.fft_len = int(self.frame_len / 2 + 1)
         self.eigenvector = np.ones((self.fft_len, self.num_of_mics), dtype=np.complex64) +\
                            np.zeros((self.fft_len, self.num_of_mics), dtype=np.complex64) * 1j
-        self.psd_speech = np.random.random((self.fft_len, self.num_of_mics, self.num_of_mics)).astype(np.complex64)
-        self.psd_noise = np.random.random((self.fft_len, self.num_of_mics, self.num_of_mics)).astype(np.complex64)
+        self.psd_speech = np.tile(np.diag(np.ones(self.num_of_mics)), (self.fft_len, 1)).reshape(-1, self.num_of_mics, self.num_of_mics).astype(np.complex64)
+        self.psd_noise = np.tile(np.diag(np.ones(self.num_of_mics)), (self.fft_len, 1)).reshape(-1, self.num_of_mics, self.num_of_mics).astype(np.complex64)
 
     def fast_mvdr(self, sound, steervect):
         cminv = np.linalg.inv(self.psd_noise)
@@ -38,13 +38,12 @@ class Model:
         toUpd = speech_mask > self.mask_thresh_speech
         self.psd_speech[toUpd] = self.psd_tracking_constant_speech * self.psd_speech[toUpd] + \
                                  (1 - self.psd_tracking_constant_speech) * \
-                                 np.einsum('ij,ik->ijk', fft_vector, fft_vector.conj())[toUpd]
-
+                                 np.einsum('...i,...j->...ij', fft_vector, fft_vector.conj())[toUpd]
+        
         toUpd = speech_mask < self.mask_thresh_speech
         self.psd_noise[toUpd] = self.psd_tracking_constant_noise * self.psd_noise[toUpd] + \
                                 (1 - self.psd_tracking_constant_noise) * \
-                                np.einsum('ij,ik->ijk', fft_vector, fft_vector.conj())[toUpd]
-
+                                np.einsum('...i,...j->...ij', fft_vector, fft_vector.conj())[toUpd]
     def update_ev_by_power_iteration(self):
         # unnormalized_eigenvector = np.einsum('...ij,...j->...i', self.psd_speech, self.eigenvector, dtype=np.complex128)
         # self.eigenvector = unnormalized_eigenvector / np.linalg.norm(unnormalized_eigenvector)
@@ -66,5 +65,18 @@ class Model:
         vad_mask = vad_mask * vad_mask.transpose([0, 2, 1])
         self.update_psds(ffts, vad_mask)
         self.update_ev_by_power_iteration()
-        result_fftd = self.fast_mvdr(ffts, self.eigenvector)
+        d_theta = np.ones((self.fft_len, self.num_of_mics), dtype=np.complex64)
+        factor_1 = -1j * 2 * np.pi
+        for k in range(1, self. fft_len):
+            factor_2 = (k * self.frequency) / (self.frame_len / 2)
+            d_theta[k, :] = [1,
+                np.exp(factor_1 * 0 / factor_2),
+                np.exp(factor_1 * 0 / factor_2),
+                np.exp(factor_1 * 0 / factor_2),
+                np.exp(factor_1 * 0 / factor_2),
+                np.exp(factor_1 * 0 / factor_2),
+                np.exp(factor_1 * 0 / factor_2),
+                np.exp(factor_1 * 0 / factor_2)]
+        result_fftd = self.fast_mvdr(ffts, d_theta)
+        # result_fftd = self.fast_mvdr(ffts, self.eigenvector)
         return result_fftd.reshape(-1, 1)
