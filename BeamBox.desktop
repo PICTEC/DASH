@@ -1,0 +1,8 @@
+[Desktop Entry]
+Encoding=UTF-8
+Name=BeamBox
+Comment=Launch PICTEC Demo
+Exec=gnome-terminal -e "/bin/bash /home/nvidia/DASH/launcher.sh"
+Icon=utilities-terminal
+Type=Application
+Terminal=false
