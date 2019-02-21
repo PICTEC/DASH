@@ -109,9 +109,11 @@ class GUI(QMainWindow):
     """
     Interface class for graphical user interface for our demonstration
     """
-    def __init__(self):
+    def __init__(self, width, height):
         super().__init__()
         self.config = {}
+        self.screen_width = width
+        self.screen_height = height
 
         self.initUI()
 
@@ -178,7 +180,8 @@ class GUI(QMainWindow):
 
         logo = QLabel(self.centralWidget)
         logo_pixmap = QPixmap('bin/logo.png')
-        logo.setPixmap(logo_pixmap.scaled(280, 210))
+        #logo.setPixmap(logo_pixmap.scaled(280, 210))
+        logo.setPixmap(logo_pixmap.scaled(int(0.15*self.screen_width), int(0.2*self.screen_height)))
 
         label_in_out_play = QLabel(self.centralWidget)
         label_in_out_play.setText("<font color='White'> Select what is played </font>")
@@ -242,7 +245,8 @@ class GUI(QMainWindow):
 
         logo = QLabel(self.centralWidget)
         logo_pixmap = QPixmap('bin/logo_big.png')
-        logo.setPixmap(logo_pixmap.scaled(560, 420))
+        #logo.setPixmap(logo_pixmap.scaled(560, 420))
+        logo.setPixmap(logo_pixmap.scaled(int(0.3*self.screen_width), int(0.4*self.screen_height)))
 
         localization_plot_layout.addStretch()
         localization_plot_layout.addWidget(self.localization)
@@ -392,5 +396,7 @@ class GUI(QMainWindow):
 
 if __name__ == '__main__':
     app = QtGui.QApplication([])
-    mainWin = GUI()
+    screen_resolution = app.desktop().screenGeometry()
+    width, height = screen_resolution.width(), screen_resolution.height()
+    mainWin = GUI(width, height)
     app.exec_()
