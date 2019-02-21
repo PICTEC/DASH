@@ -64,12 +64,12 @@ class Model:
         prep = np.abs(prep)
         response = self.session.run(self.output,
             feed_dict={self.input: prep})
-        vad_mask = np.transpose(np.clip(response, 0, None) ** 3, [2, 0, 1])
-        speech_update = (vad_mask > self.mask_thresh_speech) * (vad_mask > self.mask_thresh_speech).transpose([0, 2, 1])
-        speech_update = speech_update.sum((1,2))
-        noise_update = (vad_mask < self.mask_thresh_noise) * (vad_mask < self.mask_thresh_noise).transpose([0, 2, 1])
-        noise_update = noise_update.sum((1,2))
+        vad_mask = np.transpose(response, [2, 0, 1])
+        speech_update = vad_mask.mean((1,2)) > self.mask_thresh_speech
+        print(speech_update)
+        noise_update = vad_mask.mean((1,2)) < self.mask_thresh_noise
+        print(noise_update.mean())
         self.update_psds(ffts, speech_update, noise_update)
         self.update_ev_by_power_iteration()
-        result_fftd = self.fast_mvdr(ffts, self.eigenvector)
+        result_fftd = self.fast_mvdr(vad_mask.reshape(self.fft_len, self.num_of_mics) ** 2 * ffts, self.eigenvector)
         return result_fftd.reshape(-1, 1)
