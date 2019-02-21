@@ -10,18 +10,20 @@ import matplotlib.pyplot as plt
 
 class Model:
     def __init__(self, n, f, speed_of_sound, mics_locs, frame_hop, frame_len, mu_cov):
-        self.mask_thresh = 0.5
+        self.mask_thresh_speech = 0.7
+        self.mask_thresh_noise = 0.3
         self.num_of_mics = n
         self.speed_of_sound = speed_of_sound
         self.frame_hop = frame_hop
         self.frame_len = frame_len
         self.frequency = f
         self.mu_cov = float(mu_cov)
-        self.psd_tracking_constant_speech = 0.7 + 0j
-        self.psd_tracking_constant_noise = 0.3 + 0j
+        self.psd_tracking_constant_speech = 0.5 + 0j
+        self.psd_tracking_constant_noise = 0.95 + 0j
         self.frame = 0
         self.fft_len = int(self.frame_len / 2 + 1)
-        self.eigenvector = np.zeros((self.fft_len, self.num_of_mics), dtype=np.complex64)
+        self.eigenvector = np.ones((self.fft_len, self.num_of_mics), dtype=np.complex64) +\
+                           np.zeros((self.fft_len, self.num_of_mics), dtype=np.complex64) * 1j
         self.psd_speech = np.random.random((self.fft_len, self.num_of_mics, self.num_of_mics)).astype(np.complex64)
         self.psd_noise = np.random.random((self.fft_len, self.num_of_mics, self.num_of_mics)).astype(np.complex64)
 
@@ -33,22 +35,20 @@ class Model:
 
     def update_psds(self, fft_vector, speech_mask):
         # which PSDs will be updated
-        toUpd = speech_mask > self.mask_thresh
+        toUpd = speech_mask > self.mask_thresh_speech
         self.psd_speech[toUpd] = self.psd_tracking_constant_speech * self.psd_speech[toUpd] + \
                                  (1 - self.psd_tracking_constant_speech) * \
                                  np.einsum('ij,ik->ijk', fft_vector, fft_vector.conj())[toUpd]
 
-        toUpd = np.invert(toUpd)
+        toUpd = speech_mask < self.mask_thresh_speech
         self.psd_noise[toUpd] = self.psd_tracking_constant_noise * self.psd_noise[toUpd] + \
                                 (1 - self.psd_tracking_constant_noise) * \
                                 np.einsum('ij,ik->ijk', fft_vector, fft_vector.conj())[toUpd]
 
     def update_ev_by_power_iteration(self):
-        unnormalized_eigenvector = np.einsum('...ij,...j->...i', self.psd_speech, self.eigenvector, dtype=np.complex128)
-        print(self.psd_speech.dtype)
-        print(self.eigenvector.dtype)
-        print(unnormalized_eigenvector.dtype)
-        self.eigenvector = unnormalized_eigenvector / np.norm(unnormalized_eigenvector)
+        # unnormalized_eigenvector = np.einsum('...ij,...j->...i', self.psd_speech, self.eigenvector, dtype=np.complex128)
+        # self.eigenvector = unnormalized_eigenvector / np.linalg.norm(unnormalized_eigenvector)
+        self.eigenvector = np.linalg.eig(self.psd_speech)[0]
 
     def initialize(self):
         self.model = keras.models.load_model("storage/8chmask.h5")
@@ -67,5 +67,4 @@ class Model:
         self.update_psds(ffts, vad_mask)
         self.update_ev_by_power_iteration()
         result_fftd = self.fast_mvdr(ffts, self.eigenvector)
-        print(result_fftd)
         return result_fftd.reshape(-1, 1)
