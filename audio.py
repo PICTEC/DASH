@@ -339,6 +339,7 @@ class AudioCntl:
     Controller of the Audio Server
     """
     def __init__(self, **kwargs):
+        print('Audio controller initialize')
         self.audio = Audio(**kwargs)
         self.client = mqtt.Client("dash.audio")
         self.client.on_message = self.process
@@ -355,7 +356,7 @@ class AudioCntl:
 
     def process(self, client, _, message):
         print("Received message")
-        command, payload = message[:8], message[8:]
+        command, payload = message.payload[:8], message.payload[8:]
         if command == b"OPEN    ":
             self.audio.open()
         elif command == b"CLOSE   ":
@@ -371,7 +372,6 @@ class AudioCntl:
         else:
             print("Unknown command")
         print("Message accepted")
-
 
 class FastAudio:
     def __init__(self, **kwargs):
@@ -395,18 +395,19 @@ class FastAudio:
 
     def open(self):
         print("PUBLISHING OPEN")
-        self.client.publish("dash.audio.ctl", b"OPEN    ")
+        self.client.publish("dash.audio.ctl", b"OPEN    ", retain=True)
+        time.sleep(1)
         print("PUBLISHED OPEN")
 
     def close(self):
-        self.client.publish("dash.audio.ctl", b"CLOSE   ")
+        self.client.publish("dash.audio.ctl", b"CLOSE   ", retain=True)
 
     def __enter__(self):
         self.open()
         return self
 
     def __exit__(self, type, value, tb):
-        self.client.publish("dash.audio.ctl", b"CLOSE   ")
+        self.client.publish("dash.audio.ctl", b"CLOSE   ", retain=True)
 
     def write_to_output(self, arr):
         payload = arr.tobytes()
@@ -421,13 +422,13 @@ class FastAudio:
             if self.Q:
                 ret = self.Q.popleft()
             else:
-                time.sleep(0)
+                time.sleep(0.001)
         return ret
 
     def process(self, client, _, message):
         print("FastAudio received message")
-        arr = np.frombuffer(message, dtype=np.float32).reshape(self.shape)
-        self.Q.append(arr)
+        #arr = np.frombuffer(message.payload, dtype=np.float32).reshape(self.shape)
+        #self.Q.append(arr)
 
     def exit_this(self):
         self.client.publish("dash.audio.ctl", b"OFF     ")
