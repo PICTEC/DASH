@@ -3,9 +3,7 @@ import keras
 import keras.backend as K
 import math
 import numpy as np
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
+import datetime
 
 
 class Model:
@@ -33,18 +31,18 @@ class Model:
         return (conj @ cminv @ sound.reshape(self.fft_len, -1, 1)) / (
                 conj @ cminv @ steervect.reshape(self.fft_len, -1, 1))
 
-    def update_psds(self, fft_vector, speech_mask):
-        # which PSDs will be updated
-        toUpd = speech_mask > self.mask_thresh_speech
+    def update_psds(self, fft_vector, speech_mask, noise_mask):
+        toUpd = speech_mask
         self.psd_speech[toUpd] = self.psd_tracking_constant_speech * self.psd_speech[toUpd] + \
                                  (1 - self.psd_tracking_constant_speech) * \
                                  np.einsum('...i,...j->...ij', fft_vector, fft_vector.conj())[toUpd]
-        # print(self.psd_speech[2,:,:])
-        toUpd = speech_mask < self.mask_thresh_speech
+        toUpd = noise_mask
         self.psd_noise[toUpd] = self.psd_tracking_constant_noise * self.psd_noise[toUpd] + \
                                 (1 - self.psd_tracking_constant_noise) * \
                                 np.einsum('...i,...j->...ij', fft_vector, fft_vector.conj())[toUpd]
+
     def update_ev_by_power_iteration(self):
+        # Uncomment to use non-working method of estimation without decomposition :P
         # unnormalized_eigenvector = np.einsum('...ij,...j->...i', self.psd_speech, self.eigenvector, dtype=np.complex128)
         # self.eigenvector = unnormalized_eigenvector / np.linalg.norm(unnormalized_eigenvector)
         self.eigenvector = np.linalg.eig(self.psd_speech)[0]
@@ -61,27 +59,12 @@ class Model:
         prep = np.abs(prep)
         response = self.session.run(self.output,
             feed_dict={self.input: prep})
-        # vad_mask = np.transpose(np.clip(response, 0, None) ** 1.5, [2, 0, 1])
-        # vad_mask = vad_mask * vad_mask.transpose([0, 2, 1])
-        # self.update_psds(ffts, vad_mask)
-        # self.update_ev_by_power_iteration()
-        d_theta = np.ones((self.fft_len, self.num_of_mics), dtype=np.complex64)
-        factor_1 = -1j * 2 * np.pi
-        for k in range(1, self. fft_len):
-            factor_2 = (k * self.frequency) / (self.frame_len / 2)
-            d_theta[k, :] = [1,
-                np.exp(factor_1 * 0 / factor_2),
-                np.exp(factor_1 * 0 / factor_2),
-                np.exp(factor_1 * 0 / factor_2),
-                np.exp(factor_1 * 0 / factor_2),
-                np.exp(factor_1 * 0 / factor_2),
-                np.exp(factor_1 * 0 / factor_2),
-                np.exp(factor_1 * 0 / factor_2)]
-        # result_fftd = self.fast_mvdr(ffts, d_theta)
-        # result_fftd = self.fast_mvdr(ffts, self.eigenvector)
-        result_fftd = (ffts * d_theta).sum(1).reshape(-1,1)/self.num_of_mics
+        vad_mask = np.transpose(np.clip(response, 0, None) ** 3, [2, 0, 1])
+        speech_update = (vad_mask > self.mask_thresh_speech) * (vad_mask > self.mask_thresh_speech).transpose([0, 2, 1])
+        speech_update = speech_update.sum((1,2))
+        noise_update = (vad_mask < self.mask_thresh_noise) * (vad_mask < self.mask_thresh_noise).transpose([0, 2, 1])
+        noise_update = noise_update.sum((1,2))
+        self.update_psds(ffts, speech_update, noise_update)
+        self.update_ev_by_power_iteration()
+        result_fftd = self.fast_mvdr(ffts, self.eigenvector)
         return result_fftd.reshape(-1, 1)
-
-    def delay_and_sum(self, ftts):
-        steering_vector = ...
-        return (steering_vecotr * ftts).sum(1).reshape(-1, 1)
