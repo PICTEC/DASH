@@ -1,0 +1,10 @@
+buffer_size: 512
+buffer_hop: 256
+sample_rate: 16000
+n_in_channels: 8
+n_out_channels: 1
+input_device_id: NULL
+output_device_id: NULL
+input_from_file: ../withoutDelay/0.wav
+save_input: NULL
+save_output: TRUE

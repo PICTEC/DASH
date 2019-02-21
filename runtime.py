@@ -38,6 +38,14 @@ POST_FILTER_LIB = {
 class Runtime:
     def __init__(self):
         self.configurations = {
+            "lstm-mvdr": {
+                "name": "8ch LSTM + MVDR",
+                "configs": [
+                    "configs/large_hop_input_config.yaml",
+                    "configs/null_postfilter.yaml",
+                    "configs/lstm_mvdr_model.yaml"
+                ]
+            },
             "small-lstm": {
                 "name": "Monophonic LSTM Masking - v1",
                 "configs": [
@@ -61,27 +69,9 @@ class Runtime:
                     "configs/postfilter.yaml",
                     "configs/null_model.yaml"
                 ]
-            },
-            """
-            "vad-mvdr": {
-                "name": "VAD + MVDR (TBD)",
-                "configs": [
-                    "configs/input_config.yaml",
-                    "configs/null_postfilter.yaml",
-                    "configs/vad_mvdr_config.yaml"
-                ]
-            },
-            """
-            "lstm-mvdr": {
-                "name": "Multichannel LSTM + MVDR",
-                "configs": [
-                    "configs/large_hop_input_config.yaml",
-                    "configs/null_postfilter.yaml",
-                    "configs/beamformer_model.yaml"
-                ]
             }
         }
-        self.default = "lstm"
+        self.default = "lstm-mvdr"
         self.TIMEIT = None
         self.audio = None
         self.play_processed = True

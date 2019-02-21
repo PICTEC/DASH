@@ -7,15 +7,14 @@ import datetime
 
 
 class Model:
-    def __init__(self, n, f, speed_of_sound, mics_locs, frame_hop, frame_len, mu_cov):
+    def __init__(self, n, frame_len, delay_and_sum, use_channels, model_name):
+        self.model_path = model_name
         self.mask_thresh_speech = 0.7
         self.mask_thresh_noise = 0.3
         self.num_of_mics = n
-        self.speed_of_sound = speed_of_sound
-        self.frame_hop = frame_hop
+        self.delay_and_sum = delay_and_sum # TO DO
+        self.use_channels = use_channels  # TO DO
         self.frame_len = frame_len
-        self.frequency = f
-        self.mu_cov = float(mu_cov)
         self.psd_tracking_constant_speech = 0.5 + 0j
         self.psd_tracking_constant_noise = 0.99 + 0j
         self.frame = 0
@@ -48,11 +47,17 @@ class Model:
         self.eigenvector = np.linalg.eig(self.psd_speech)[0]
 
     def initialize(self):
-        self.model = keras.models.load_model("storage/8chmask.h5")
+        self.model = keras.models.load_model(self.model_path)
         self.model._make_predict_function()
         self.input = self.model.input
         self.output = self.model.output
         self.session = K.get_session()
+        # Three dry run to compile this magical device
+        for i in range(3):
+            prep = np.random.random([8, 1, 257]).astype(np.float32)
+            self.session.run(self.output,
+                feed_dict={self.input: prep})
+
 
     def process(self, ffts):
         prep = ffts.T.reshape(self.num_of_mics, 1, -1)
