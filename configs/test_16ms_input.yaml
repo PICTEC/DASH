@@ -5,6 +5,6 @@ n_in_channels: 8
 n_out_channels: 1
 input_device_id: NULL
 output_device_id: NULL
-input_from_file: ../withoutDelay/0.wav
+input_from_file: ../0.wav
 save_input: NULL
 save_output: TRUE
