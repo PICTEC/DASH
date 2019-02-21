@@ -376,11 +376,15 @@ class GUI(QMainWindow):
         """
 
     def config_change(self, config):
-        self.config = json.loads(config)
-
+        default, self.config = json.loads(config)
+        IX = -1
         self.combo_config.clear()
-        for k in self.config.keys():
+        for ix, (k, v) in enumerate(self.config.items()):
             self.combo_config.addItem(k)
+            if v == default:
+                IX = ix
+        if IX != -1:
+            self.combo_config.setCurrentIndex(IX)
 
     def publish_config(self, text):
         self.client.publish('dash.control', 'SWITCH_'+self.config[text])

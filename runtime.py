@@ -84,7 +84,7 @@ class Runtime:
         self.client.connect('localhost')
         self.client.subscribe('dash.control')
         self.client.loop_start()
-        config = {v["name"]: k for k,v in self.configurations.items()}
+        config = [self.default, {v["name"]: k for k,v in self.configurations.items()}]
         self.client.publish("dash.config", json.dumps(config), retain=True)
         self.Q = []
 
@@ -220,24 +220,22 @@ if __name__ == "__main__":
         with open(args.audio_config, 'r') as file:
             audio_config = yaml.load(file)
     except:
-        audio_config = {}
+        print("Cannot load audio config {}, exiting".format(args.audio_config))
+        raise
+        exit(1)
     try:
         with open(args.post_filter_config, 'r') as file:
             post_filter_config = yaml.load(file)
     except:
-        post_filter_config = {"mode": "null", "fname": "storage/model-dae.h5"}
+        print("Cannot load post filter config, exiting")
+        exit(1)
     try:
         with open(args.model_config, 'r') as file:
             model_config = yaml.load(file)
     except:
-        model_config = {"mode": "beam", "n": 6, "f": 16000, "speed_of_sound": 340,
-            "frame_hop": 128, "frame_len": 1024, "mu_cov": 0.95,
-            "mics_locs": [[0.00000001, 0.00000001, 0.00000001],
-                          [0.1, 0.00000001, 0.00000001],
-                          [0.2, 0.00000001, 0.00000001],
-                          [0.00000001, -0.19, 0.00000001],
-                          [0.1, -0.19, 0.00000001],
-                          [0.2, -0.19, 0.00000001]]}
+        print("Cannot load model config, exiting")
+        exit(1)
+
     if args.input_from_catalog:
         waves = [file for file in listdir(args.input_from_catalog) if ".wav" in file]
         for wave in waves:

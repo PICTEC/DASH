@@ -156,20 +156,20 @@ class ReadThread(threading.Thread):
         """
         if self.from_file is None:
             while not self.stopped:
-                t = time.time()
+                # t = time.time()
                 input = self.stream.read(self.hop)
                 self.buffer.put(input)
                 if self.record_to_file:
                     self.f.writeframesraw(input)
-                print("ACQ", time.time() - t)
+                # print("ACQ", time.time() - t)
         else:
             while not self.stopped:
-                t = time.time()
+                # t = time.time()
                 input = self.wf.readframes(self.hop)
-                print("ACQuisition", time.time() - t)
-                t = time.time()
+                # print("ACQuisition", time.time() - t)
+                # t = time.time()
                 self.buffer.put(input)
-                print("Putting to Queue ACQ", time.time() - t)
+                # print("Putting to Queue ACQ", time.time() - t)
 
     def stop(self):
         """Stop thread and close stream
