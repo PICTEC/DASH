@@ -38,40 +38,33 @@ POST_FILTER_LIB = {
 class Runtime:
     def __init__(self):
         self.configurations = {
+            "postfilter": {
+                "name": "Monophonic Denoising Autoencoder",
+                "configs": [
+                    "configs/input_config.yaml",
+                    "configs/postfilter.yaml",
+                    "configs/null_model.yaml"
+                ]
+            },
+            "small-lstm": {
+                "name": "Monophonic LSTM Masking - v1",
+                "configs": [
+                    "configs/large_hop_input_config.yaml",
+                    "configs/null_postfilter.yaml",
+                    "configs/1_layer.yaml"
+                ]
+            },
             "lstm-mvdr": {
-                "name": "8ch LSTM + MVDR",
+                "name": "Deep MVDR",
                 "configs": [
                     "configs/large_hop_input_config.yaml",
                     "configs/null_postfilter.yaml",
                     "configs/lstm_mvdr_model.yaml"
                 ]
             },
-            "small-lstm": {
-                "name": "Monophonic LSTM Masking - v1",
-                "configs": [
-                    "configs/small_hop_input_config.yaml",
-                    "configs/null_postfilter.yaml",
-                    "configs/1_layer.yaml"
-                ]
-            },
-            "lstm": {
-                "name": "Monophonic LSTM Masking - v2",
-                "configs": [
-                    "configs/small_hop_input_config.yaml",
-                    "configs/null_postfilter.yaml",
-                    "configs/3_layer.yaml"
-                ]
-            },
-            "postfilter": {
-                "name": "Monophonic Postfilter",
-                "configs": [
-                    "configs/input_config.yaml",
-                    "configs/postfilter.yaml",
-                    "configs/null_model.yaml"
-                ]
-            }
+
         }
-        self.default = "lstm-mvdr"
+        self.default = "postfilter"
         self.TIMEIT = None
         self.audio = None
         self.play_processed = True
@@ -84,7 +77,7 @@ class Runtime:
         self.client.connect('localhost')
         self.client.subscribe('dash.control')
         self.client.loop_start()
-        config = {v["name"]: k for k,v in self.configurations.items()}
+        config = [self.default, {v["name"]: k for k,v in self.configurations.items()}]
         self.client.publish("dash.config", json.dumps(config), retain=True)
         self.Q = []
 
@@ -220,24 +213,22 @@ if __name__ == "__main__":
         with open(args.audio_config, 'r') as file:
             audio_config = yaml.load(file)
     except:
-        audio_config = {}
+        print("Cannot load audio config {}, exiting".format(args.audio_config))
+        raise
+        exit(1)
     try:
         with open(args.post_filter_config, 'r') as file:
             post_filter_config = yaml.load(file)
     except:
-        post_filter_config = {"mode": "null", "fname": "storage/model-dae.h5"}
+        print("Cannot load post filter config, exiting")
+        exit(1)
     try:
         with open(args.model_config, 'r') as file:
             model_config = yaml.load(file)
     except:
-        model_config = {"mode": "beam", "n": 6, "f": 16000, "speed_of_sound": 340,
-            "frame_hop": 128, "frame_len": 1024, "mu_cov": 0.95,
-            "mics_locs": [[0.00000001, 0.00000001, 0.00000001],
-                          [0.1, 0.00000001, 0.00000001],
-                          [0.2, 0.00000001, 0.00000001],
-                          [0.00000001, -0.19, 0.00000001],
-                          [0.1, -0.19, 0.00000001],
-                          [0.2, -0.19, 0.00000001]]}
+        print("Cannot load model config, exiting")
+        exit(1)
+
     if args.input_from_catalog:
         waves = [file for file in listdir(args.input_from_catalog) if ".wav" in file]
         for wave in waves:

@@ -1,4 +1,4 @@
-from PyQt5 import QtCore, QtWidgets, QtGui
+from PyQt5 import QtCore, QtWidgets, QtGui, QtWebEngineWidgets
 from PyQt5.QtWidgets import QMainWindow, QLabel, QWidget, QPushButton, QHBoxLayout, QVBoxLayout
 from PyQt5.QtWidgets import QRadioButton, QButtonGroup, QComboBox
 from PyQt5.QtGui import QPixmap
@@ -109,10 +109,14 @@ class GUI(QMainWindow):
     """
     Interface class for graphical user interface for our demonstration
     """
-    def __init__(self):
+    def __init__(self, width, height):
         super().__init__()
         self.config = {}
+        self.screen_width = width
+        self.screen_height = height
 
+        self.about_window = QtWebEngineWidgets.QWebEngineView()
+        self.about_window.load(QtCore.QUrl().fromLocalFile( '/home/mateusz/PICTEC/DASH/DASH/showcase.html' ))
         self.initUI()
 
         self.client = mqtt.Client('GUI')
@@ -171,6 +175,12 @@ class GUI(QMainWindow):
         self.combo_config = QComboBox(self.centralWidget)
         self.combo_config.activated[str].connect(self.publish_config)
 
+        self.button_about = QPushButton('About', self.centralWidget)
+        self.button_about.clicked.connect(self.about)
+
+        self.button_exit = QPushButton('Exit', self.centralWidget)
+        self.button_exit.clicked.connect(self.close)
+
     def _control_panel(self):
         control_layout = QVBoxLayout()
         control_start_stop_layout = QHBoxLayout()
@@ -178,7 +188,8 @@ class GUI(QMainWindow):
 
         logo = QLabel(self.centralWidget)
         logo_pixmap = QPixmap('bin/logo.png')
-        logo.setPixmap(logo_pixmap.scaled(280, 210))
+        #logo.setPixmap(logo_pixmap.scaled(280, 210))
+        logo.setPixmap(logo_pixmap.scaled(int(0.15*self.screen_width), int(0.2*self.screen_height)))
 
         label_in_out_play = QLabel(self.centralWidget)
         label_in_out_play.setText("<font color='White'> Select what is played </font>")
@@ -186,6 +197,7 @@ class GUI(QMainWindow):
         label_config.setText("<font color='White'> Select configuration </font>")
 
         control_layout.addWidget(logo)
+        control_layout.addWidget(self.button_about)
         control_layout.addStretch()
 
         control_layout.addWidget(label_config)
@@ -202,6 +214,9 @@ class GUI(QMainWindow):
         control_start_stop_layout.addWidget(self.button_stop)
         control_layout.addLayout(control_start_stop_layout)
         control_layout.addStretch()
+
+        control_layout.addWidget(self.button_exit)
+        control_layout.addSpacing(50)
 
         return control_layout
 
@@ -242,7 +257,8 @@ class GUI(QMainWindow):
 
         logo = QLabel(self.centralWidget)
         logo_pixmap = QPixmap('bin/logo_big.png')
-        logo.setPixmap(logo_pixmap.scaled(560, 420))
+        #logo.setPixmap(logo_pixmap.scaled(560, 420))
+        logo.setPixmap(logo_pixmap.scaled(int(0.3*self.screen_width), int(0.4*self.screen_height)))
 
         localization_plot_layout.addStretch()
         localization_plot_layout.addWidget(self.localization)
@@ -288,6 +304,9 @@ class GUI(QMainWindow):
 
     def plat_output(self):
         self.client.publish('dash.control', 'PLAY_OUT')
+
+    def about(self):
+        self.about_window.show()
 
     def put_localization(self, point):
         """
@@ -376,11 +395,15 @@ class GUI(QMainWindow):
         """
 
     def config_change(self, config):
-        self.config = json.loads(config)
-
+        default, self.config = json.loads(config)
+        IX = -1
         self.combo_config.clear()
-        for k in self.config.keys():
+        for ix, (k, v) in enumerate(self.config.items()):
             self.combo_config.addItem(k)
+            if v == default:
+                IX = ix
+        if IX != -1:
+            self.combo_config.setCurrentIndex(IX)
 
     def publish_config(self, text):
         self.client.publish('dash.control', 'SWITCH_'+self.config[text])
@@ -388,5 +411,7 @@ class GUI(QMainWindow):
 
 if __name__ == '__main__':
     app = QtGui.QApplication([])
-    mainWin = GUI()
+    screen_resolution = app.desktop().screenGeometry()
+    width, height = screen_resolution.width(), screen_resolution.height()
+    mainWin = GUI(width, height)
     app.exec_()
