@@ -15,7 +15,7 @@ class Model:
         self.delay_and_sum = delay_and_sum # TO DO
         self.use_channels = use_channels  # TO DO
         self.frame_len = frame_len
-        self.psd_tracking_constant_speech = 0.5 + 0j
+        self.psd_tracking_constant_speech = 0.95 + 0j
         self.psd_tracking_constant_noise = 0.99 + 0j
         self.frame = 0
         self.fft_len = int(self.frame_len / 2 + 1)
@@ -41,10 +41,10 @@ class Model:
                                 np.einsum('...i,...j->...ij', fft_vector, fft_vector.conj())[toUpd]
 
     def update_ev_by_power_iteration(self):
-        # Uncomment to use non-working method of estimation without decomposition :P
-        # unnormalized_eigenvector = np.einsum('...ij,...j->...i', self.psd_speech, self.eigenvector, dtype=np.complex128)
-        # self.eigenvector = unnormalized_eigenvector / np.linalg.norm(unnormalized_eigenvector)
-        self.eigenvector = np.linalg.eig(self.psd_speech)[0]
+        unnormalized_eigenvector = np.einsum('...ij,...j->...i', self.psd_speech, self.eigenvector, dtype=np.complex128)
+        eigen_norm = np.sqrt((unnormalized_eigenvector * unnormalized_eigenvector.conj()).mean(1))
+        self.eigenvector = unnormalized_eigenvector / eigen_norm[:,None]
+        # self.eigenvector2 = np.linalg.eig(self.psd_speech)[0]
 
     def initialize(self):
         self.model = keras.models.load_model(self.model_path)
@@ -65,9 +65,10 @@ class Model:
         response = self.session.run(self.output,
             feed_dict={self.input: prep})
         vad_mask = np.transpose(response, [2, 0, 1])
-        speech_update = vad_mask.mean((1,2)) > self.mask_thresh_speech
-        print(speech_update)
-        noise_update = vad_mask.mean((1,2)) < self.mask_thresh_noise
+        vad_mean =  vad_mask.mean((1,2))
+        speech_update = vad_mean > self.mask_thresh_speech
+        print(speech_update.mean())
+        noise_update = vad_mean < self.mask_thresh_noise
         print(noise_update.mean())
         self.update_psds(ffts, speech_update, noise_update)
         self.update_ev_by_power_iteration()
