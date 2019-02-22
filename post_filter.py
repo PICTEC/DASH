@@ -101,11 +101,9 @@ class DAEPostFilter(BufferMixin([17, 257, 1], np.complex64)):
     def process(self, sample):
         self.buffer.push(sample)
         predictive = -np.log(np.abs(self.buffer.reshape([1, 17, 257])) ** 2 + 2e-12)
-        t = time.time()
         result = self.session.run(self.output,
                     feed_dict={self.input: predictive})
-        print("Graph time:", time.time() - t)
-        result = result[0, 0, :]  # extract channel of interest
+        result = result[:1, 0, :].T  # extract channel of interest
         result = np.sqrt(np.exp(-result)) * np.exp(1j * np.angle(sample))  # restore phase information
         return result
 
