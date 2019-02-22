@@ -47,7 +47,7 @@ class Model:
     def update_ev_by_power_iteration(self):
         # Uncomment to use non-working method of estimation without decomposition :P
         # unnormalized_eigenvector = np.einsum('...ij,...j->...i', self.psd_speech, self.eigenvector, dtype=np.complex128)
-        # self.eigenvector = unnormalized_eigenvector / np.linalg.norm(unnormalized_eigenvector)
+        # self.eigenvector = -unnormalized_eigenvector / np.linalg.norm(unnormalized_eigenvector)
         self.eigenvector = np.linalg.eig(self.psd_speech)[0]
 
     def gcc_phat(self, sigl_fft, sigr_fft, max_delay, distance):

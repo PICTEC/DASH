@@ -16,7 +16,7 @@ logger = logging.getLogger("dash.runtime")
 from audio import Audio
 from model import DolphinModel, NullModel
 from mvdr_model import Model as MVDRModel
-from mono_model import MonoModel
+from mono_model import MonoModel, MonoModelWindowed
 from post_filter import DAEPostFilter, NullPostFilter
 from utils import fft, Remix, AdaptiveGain
 import cProfile
@@ -26,7 +26,8 @@ MODEL_LIB = {
     "beam": MVDRModel,
     "dolphin": DolphinModel,
     "null": NullModel,
-    "mono": MonoModel
+    "mono": MonoModel,
+    "mono-pf": MonoModelWindowed
 }
 
 POST_FILTER_LIB = {
@@ -41,7 +42,7 @@ class Runtime:
             "postfilter": {
                 "name": "Monophonic Denoising Autoencoder",
                 "configs": [
-                    "configs/input_config.yaml",
+                    "configs/large_hop_input_config.yaml",
                     "configs/postfilter.yaml",
                     "configs/null_model.yaml"
                 ]
@@ -54,6 +55,30 @@ class Runtime:
                     "configs/1_layer.yaml"
                 ]
             },
+            "larger-lstm": {
+                "name": "Monophonic LSTM Masking - v2",
+                "configs": [
+                    "configs/large_hop_input_config.yaml",
+                    "configs/null_postfilter.yaml",
+                    "configs/3_layer.yaml"
+                ]
+            },
+            "dae-lstm": {
+                "name": "Monophonic LSTM Masking - v2",
+                "configs": [
+                    "configs/large_hop_input_config.yaml",
+                    "configs/null_postfilter.yaml",
+                    "configs/pf_masking_layer.yaml"
+                ]
+            },
+            "lstm-pf": {
+                "name": "Monophonic LSTM Masking with postfilter",
+                "configs": [
+                    "configs/large_hop_input_config.yaml",
+                    "configs/postfilter.yaml",
+                    "configs/1_layer.yaml"
+                ]
+            },
             "lstm-mvdr": {
                 "name": "Deep MVDR",
                 "configs": [
@@ -62,7 +87,6 @@ class Runtime:
                     "configs/lstm_mvdr_model.yaml"
                 ]
             },
-
         }
         self.default = "postfilter"
         self.TIMEIT = None
@@ -143,7 +167,7 @@ class Runtime:
         if audio_config is None or post_filter_config is None or model_config is None:
             audio_config, post_filter_config, model_config = [yaml.load(open(x)) for x in self.configurations[self.default]["configs"]]
         self.build(audio_config, post_filter_config, model_config)
-        in_gain = AdaptiveGain()
+        in_gain = AdaptiveGain(level=0.005, max_gain=10)
         out_gain = AdaptiveGain()
         remixer = Remix(buffer_size=self.audio.buffer_size, buffer_hop=self.audio.buffer_hop,
                         channels=self.audio.n_out_channels)
@@ -153,7 +177,7 @@ class Runtime:
                     ft = time.time()
                     t = time.time()
                 sample = self.audio.get_input()
-                # sample = in_gain.process(sample)
+                sample = in_gain.process(sample)
                 if self.TIMEIT:
                     logger.info("Acquisition time {}ms".format(1000 * (time.time() - t)))
                     t = time.time()

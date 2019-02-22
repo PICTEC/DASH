@@ -1,3 +1,4 @@
 mode: "mono"
 path: "storage/1-layer.h5"
-scaling_factor: 2
+scaling_factor: 3
+clip: 0.3

@@ -1,3 +1,4 @@
 mode: "mono"
 path: "storage/3layer-mask.h5"
 scaling_factor: 2
+clip: 0.3
