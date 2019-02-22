@@ -38,40 +38,33 @@ POST_FILTER_LIB = {
 class Runtime:
     def __init__(self):
         self.configurations = {
+            "postfilter": {
+                "name": "Monophonic Denoising Autoencoder",
+                "configs": [
+                    "configs/input_config.yaml",
+                    "configs/postfilter.yaml",
+                    "configs/null_model.yaml"
+                ]
+            },
+            "small-lstm": {
+                "name": "Monophonic LSTM Masking - v1",
+                "configs": [
+                    "configs/large_hop_input_config.yaml",
+                    "configs/null_postfilter.yaml",
+                    "configs/1_layer.yaml"
+                ]
+            },
             "lstm-mvdr": {
-                "name": "8ch LSTM + MVDR",
+                "name": "Deep MVDR",
                 "configs": [
                     "configs/large_hop_input_config.yaml",
                     "configs/null_postfilter.yaml",
                     "configs/lstm_mvdr_model.yaml"
                 ]
             },
-            "small-lstm": {
-                "name": "Monophonic LSTM Masking - v1",
-                "configs": [
-                    "configs/small_hop_input_config.yaml",
-                    "configs/null_postfilter.yaml",
-                    "configs/1_layer.yaml"
-                ]
-            },
-            "lstm": {
-                "name": "Monophonic LSTM Masking - v2",
-                "configs": [
-                    "configs/small_hop_input_config.yaml",
-                    "configs/null_postfilter.yaml",
-                    "configs/3_layer.yaml"
-                ]
-            },
-            "postfilter": {
-                "name": "Monophonic Postfilter",
-                "configs": [
-                    "configs/input_config.yaml",
-                    "configs/postfilter.yaml",
-                    "configs/null_model.yaml"
-                ]
-            }
+
         }
-        self.default = "lstm-mvdr"
+        self.default = "postfilter"
         self.TIMEIT = None
         self.audio = None
         self.play_processed = True
