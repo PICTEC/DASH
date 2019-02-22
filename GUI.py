@@ -1,4 +1,4 @@
-from PyQt5 import QtCore, QtWidgets, QtGui
+from PyQt5 import QtCore, QtWidgets, QtGui, QtWebEngineWidgets
 from PyQt5.QtWidgets import QMainWindow, QLabel, QWidget, QPushButton, QHBoxLayout, QVBoxLayout
 from PyQt5.QtWidgets import QRadioButton, QButtonGroup, QComboBox
 from PyQt5.QtGui import QPixmap
@@ -115,6 +115,8 @@ class GUI(QMainWindow):
         self.screen_width = width
         self.screen_height = height
 
+        self.about_window = QtWebEngineWidgets.QWebEngineView()
+        self.about_window.load(QtCore.QUrl().fromLocalFile( '/home/mateusz/PICTEC/DASH/DASH/showcase.html' ))
         self.initUI()
 
         self.client = mqtt.Client('GUI')
@@ -173,6 +175,12 @@ class GUI(QMainWindow):
         self.combo_config = QComboBox(self.centralWidget)
         self.combo_config.activated[str].connect(self.publish_config)
 
+        self.button_about = QPushButton('About', self.centralWidget)
+        self.button_about.clicked.connect(self.about)
+
+        self.button_exit = QPushButton('Exit', self.centralWidget)
+        self.button_exit.clicked.connect(self.close)
+
     def _control_panel(self):
         control_layout = QVBoxLayout()
         control_start_stop_layout = QHBoxLayout()
@@ -189,6 +197,7 @@ class GUI(QMainWindow):
         label_config.setText("<font color='White'> Select configuration </font>")
 
         control_layout.addWidget(logo)
+        control_layout.addWidget(self.button_about)
         control_layout.addStretch()
 
         control_layout.addWidget(label_config)
@@ -205,6 +214,9 @@ class GUI(QMainWindow):
         control_start_stop_layout.addWidget(self.button_stop)
         control_layout.addLayout(control_start_stop_layout)
         control_layout.addStretch()
+
+        control_layout.addWidget(self.button_exit)
+        control_layout.addSpacing(50)
 
         return control_layout
 
@@ -292,6 +304,9 @@ class GUI(QMainWindow):
 
     def plat_output(self):
         self.client.publish('dash.control', 'PLAY_OUT')
+
+    def about(self):
+        self.about_window.show()
 
     def put_localization(self, point):
         """
