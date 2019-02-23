@@ -21,6 +21,8 @@ class SpectrogramWidget(pg.PlotWidget):
         super(SpectrogramWidget, self).__init__()
         self.frame_width = frame_width
         self.hop_per_width = int(frame_width / frame_hop)
+        self.setMouseEnabled(False, False)
+        self.getPlotItem().setMenuEnabled(False)
 
         self.img = pg.ImageItem()
         self.addItem(self.img)
@@ -33,7 +35,7 @@ class SpectrogramWidget(pg.PlotWidget):
         lut = cmap.getLookupTable(0.0, 1, 255)
 
         self.img.setLookupTable(lut)
-        self.img.setLevels([-255,255])
+        self.img.setLevels([-150,-50])
 
         freq = np.arange((frame_width/2)+1)/(frame_width/sample_rate)
         yscale = 1.0/(self.img_array.shape[1]/freq[-1])
@@ -54,7 +56,6 @@ class LocalizationWidget(pg.PlotWidget):
     read_collected = QtCore.pyqtSignal(float)
     def __init__(self):
         super().__init__()
-
         self.plot = pg.PlotItem()
         self.addItem(self.plot)
         self.heightForWidth = 1
@@ -78,7 +79,9 @@ class LocalizationWidget(pg.PlotWidget):
         self.plot.hideAxis('right')
         self.plot.setXRange(-1.01, 1.01, padding=0)
         self.plot.setYRange(-1.01, 1.01, padding=0)
-
+        self.plot.hideButtons()
+        self.setMenuEnabled(False)
+        self.setMouseEnabled(False, False)
         self.show()
 
     def update(self, new_localization):
@@ -116,7 +119,7 @@ class GUI(QMainWindow):
         self.screen_height = height
 
         self.about_window = QtWebEngineWidgets.QWebEngineView()
-        self.about_window.load(QtCore.QUrl().fromLocalFile( '/home/mateusz/PICTEC/DASH/DASH/showcase.html' ))
+        self.about_window.load(QtCore.QUrl().fromLocalFile( '/home/nvidia/DASH/showcase.html'))
         self.initUI()
 
         self.client = mqtt.Client('GUI')
