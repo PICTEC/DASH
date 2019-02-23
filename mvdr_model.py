@@ -57,8 +57,7 @@ class Model:
         cc = sigl_fft * sigr_fft_star
         cc_phat = cc / abs(cc)
         r_phat = np.fft.irfft(cc_phat)[0:max_delay]
-        res = np.concatenate((r_phat[::-1], r_phat[1::]), axis=None)
-        return np.abs(self.compute_angle(np.argmax(res), distance))
+        return np.abs(self.compute_angle(np.argmax(r_phat), distance))
 
     def compute_angle(self, n, d):
         return np.arccos((1 / self.frequency * self.speed_of_sound * n) / d)
