@@ -6,17 +6,19 @@ import numpy as np
 import datetime
 import time
 
+
 class Model:
-    def __init__(self, n, frame_len, delay_and_sum, use_channels, model_name):
+    def __init__(self, n, frame_len, delay_and_sum, use_channels, model_name, choose=None):
         self.model_path = model_name
         self.mask_thresh_speech = 0.7
         self.mask_thresh_noise = 0.3
-        self.num_of_mics = n
+        self.num_of_mics = len(choose) if choose else n
         self.delay_and_sum = delay_and_sum # TO DO
         self.use_channels = use_channels  # TO DO
         self.frame_len = frame_len
         self.psd_tracking_constant_speech = 0.95 + 0j
         self.psd_tracking_constant_noise = 0.99 + 0j
+        self.choose = choose
         self.frame = 0
         self.fft_len = int(self.frame_len / 2 + 1)
         self.eigenvector = np.ones((self.fft_len, self.num_of_mics), dtype=np.complex64) +\
@@ -73,12 +75,14 @@ class Model:
         self.session = K.get_session()
         # Three dry run to compile this magical device
         for i in range(3):
-            prep = np.random.random([8, 1, 257]).astype(np.float32)
+            prep = np.random.random([self.num_of_mics, 1, self.fft_len]).astype(np.float32)
             self.session.run(self.output,
                 feed_dict={self.input: prep})
 
 
     def process(self, ffts):
+        if self.choose is not None:
+            ffts = ffts[:, self.choose]
         prep = ffts.T.reshape(self.num_of_mics, 1, -1)
         prep = np.abs(prep)
         self.doa = self.doa_ma * self.doa + (1 - self.doa_ma) * self.calc_angle(prep)

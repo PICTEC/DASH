@@ -1,0 +1,12 @@
+---
+mode: beam
+n: 8
+choose: 
+    - 0
+    - 3
+    - 4
+    - 7
+use_channels: NULL
+frame_len: 512
+delay_and_sum: FALSE
+model_name: "storage/16ms4ch.h5"

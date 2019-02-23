@@ -40,8 +40,16 @@ POST_FILTER_LIB = {
 class Runtime:
     def __init__(self):
         self.configurations = {
+            "4ch-lstm-mvdr": {
+                "name": "4-channel Deep MVDR",
+                "configs": [
+                    "configs/large_hop_input_config.yaml",
+                    "configs/null_postfilter.yaml",
+                    "configs/4ch-lstm_mvdr_config.yaml"
+                ]
+            },
             "lstm-mvdr": {
-                "name": "Deep MVDR",
+                "name": "8-channel Deep MVDR",
                 "configs": [
                     "configs/large_hop_input_config.yaml",
                     "configs/null_postfilter.yaml",
@@ -73,7 +81,7 @@ class Runtime:
                 ]
             },
         }
-        self.default = "lstm-mvdr"
+        self.default = "4ch-lstm-mvdr"
         self.TIMEIT = None
         self.audio = None
         self.play_processed = True
