@@ -48,14 +48,6 @@ class Runtime:
                     "configs/lstm_mvdr_config.yaml"
                 ]
             },
-            "postfilter": {
-                "name": "Monophonic Denoising Autoencoder",
-                "configs": [
-                    "configs/large_hop_input_config.yaml",
-                    "configs/postfilter.yaml",
-                    "configs/null_model.yaml"
-                ]
-            },
             "small-lstm": {
                 "name": "Monophonic LSTM Masking - v1",
                 "configs": [
@@ -72,12 +64,12 @@ class Runtime:
                     "configs/3_layer.yaml"
                 ]
             },
-            "dae-lstm": {
-                "name": "Monophonic LSTM Masking - v3",
+            "postfilter": {
+                "name": "Monophonic Denoising Autoencoder",
                 "configs": [
                     "configs/large_hop_input_config.yaml",
-                    "configs/null_postfilter.yaml",
-                    "configs/pf_masking_layer.yaml"
+                    "configs/postfilter.yaml",
+                    "configs/null_model.yaml"
                 ]
             },
         }
@@ -200,8 +192,10 @@ class Runtime:
                     logger.info("Resampling and output {}ms".format(1000 * (time.time() - t)))
                     logger.info("Iteration runtime {}ms".format(1000 * (time.time() - ft)))
                 self.check_queue()
-                self.send_message(in_sample, out_plot, None)
-
+                if hasattr(self.model, "doa"):
+                    self.send_message(in_sample, out_plot, self.model.doa)
+                else:
+                    self.send_message(in_sample, out_plot, None)
 
 def get_args():
     parser = argparse.ArgumentParser(description="Showcase of speech enhancement technologies.\n\n"

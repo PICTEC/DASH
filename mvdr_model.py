@@ -4,7 +4,7 @@ import keras.backend as K
 import math
 import numpy as np
 import datetime
-
+import time
 
 class Model:
     def __init__(self, n, frame_len, delay_and_sum, use_channels, model_name):
@@ -82,7 +82,6 @@ class Model:
         prep = ffts.T.reshape(self.num_of_mics, 1, -1)
         prep = np.abs(prep)
         self.doa = self.doa_ma * self.doa + (1 - self.doa_ma) * self.calc_angle(prep)
-        # print(doa)
         response = self.session.run(self.output,
             feed_dict={self.input: prep})
         vad_mask = np.transpose(response, [2, 0, 1])
@@ -93,5 +92,5 @@ class Model:
         # print(noise_update.mean())
         self.update_psds(ffts, speech_update, noise_update)
         self.update_ev_by_power_iteration()
-        result_fftd = self.fast_mvdr(vad_mask.reshape(self.fft_len, self.num_of_mics) ** 2 * ffts)
+        result_fftd = self.fast_mvdr(vad_mask.reshape(self.fft_len, self.num_of_mics) ** 2 * ffts).astype(np.complex64)
         return result_fftd.reshape(-1, 1)
