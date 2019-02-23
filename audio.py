@@ -260,10 +260,10 @@ class Audio:
             arr (np.array of shape(buffer_hop, n_out_channels)): Frames to be played
         """
         assert arr.shape == (self.buffer_hop, self.n_out_channels) or arr.shape == (self.buffer_hop,), 'incorrect shape of the output'
-        power = np.sum(arr**2) / (self.buffer_hop * self.n_out_channels)
-        print('output power: ', power)
-        self.out_power += power
-        self.out_power_i += 1
+        # power = np.sum(arr**2) / (self.buffer_hop * self.n_out_channels)
+        # print('output power: ', power)
+        # self.out_power += power
+        # self.out_power_i += 1
         self._out_arr = (arr*32768).astype(np.int16)
         self._out_interleaved = self._out_arr.flatten()
         self.out_queue.put(self._out_interleaved.tobytes())
@@ -286,10 +286,10 @@ class Audio:
             self._in_arr = np.reshape(self._in_arr_flat, (self.buffer_hop, self.n_in_channels))
         except:
             raise RuntimeError('Incorrect shape of the input')
-        power = np.sum(self._in_arr**2) / (self.buffer_hop * self.n_in_channels)
-        print('input power:', power)
-        self.in_power += power
-        self.in_power_i += 1
+        # power = np.sum(self._in_arr**2) / (self.buffer_hop * self.n_in_channels)
+        # print('input power:', power)
+        # self.in_power += power
+        # self.in_power_i += 1
         self.buffer = np.roll(self.buffer, -self.buffer_hop, axis=0)
         self.buffer[-self.buffer_hop:,:] = self._in_arr
         self._in_ret = np.copy(self.buffer)
@@ -333,8 +333,8 @@ class Audio:
         self.out_thread = None
         self.p.terminate()
 
-        print('Mean input power:', self.in_power / self.in_power_i)
-        print('Mean output power:', self.out_power / self.out_power_i)
+        # print('Mean input power:', self.in_power / self.in_power_i)
+        # print('Mean output power:', self.out_power / self.out_power_i)
 
     def __exit__(self, type, value, tb):
         # TODO: handle exception

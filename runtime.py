@@ -4,6 +4,7 @@ import argparse
 import gc
 import json
 import logging
+import numpy as np
 import paho.mqtt.client as mqtt
 import random
 import time
@@ -39,6 +40,14 @@ POST_FILTER_LIB = {
 class Runtime:
     def __init__(self):
         self.configurations = {
+            "lstm-mvdr": {
+                "name": "Deep MVDR",
+                "configs": [
+                    "configs/large_hop_input_config.yaml",
+                    "configs/null_postfilter.yaml",
+                    "configs/lstm_mvdr_config.yaml"
+                ]
+            },
             "postfilter": {
                 "name": "Monophonic Denoising Autoencoder",
                 "configs": [
@@ -64,31 +73,15 @@ class Runtime:
                 ]
             },
             "dae-lstm": {
-                "name": "Monophonic LSTM Masking - v2",
+                "name": "Monophonic LSTM Masking - v3",
                 "configs": [
                     "configs/large_hop_input_config.yaml",
                     "configs/null_postfilter.yaml",
                     "configs/pf_masking_layer.yaml"
                 ]
             },
-            "lstm-pf": {
-                "name": "Monophonic LSTM Masking with postfilter",
-                "configs": [
-                    "configs/large_hop_input_config.yaml",
-                    "configs/postfilter.yaml",
-                    "configs/1_layer.yaml"
-                ]
-            },
-            "lstm-mvdr": {
-                "name": "Deep MVDR",
-                "configs": [
-                    "configs/large_hop_input_config.yaml",
-                    "configs/null_postfilter.yaml",
-                    "configs/lstm_mvdr_model.yaml"
-                ]
-            },
         }
-        self.default = "postfilter"
+        self.default = "lstm-mvdr"
         self.TIMEIT = None
         self.audio = None
         self.play_processed = True
@@ -171,6 +164,8 @@ class Runtime:
         out_gain = AdaptiveGain()
         remixer = Remix(buffer_size=self.audio.buffer_size, buffer_hop=self.audio.buffer_hop,
                         channels=self.audio.n_out_channels)
+        # initialize FFT
+        fft(np.random.random([self.audio.buffer_size, self.audio.n_in_channels]), self.audio.buffer_size, self.audio.n_in_channels)
         with self.audio:
             while True:
                 if self.TIMEIT:

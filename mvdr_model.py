@@ -88,9 +88,9 @@ class Model:
         vad_mask = np.transpose(response, [2, 0, 1])
         vad_mean =  vad_mask.mean((1,2))
         speech_update = vad_mean > self.mask_thresh_speech
-        print(speech_update.mean())
+        # print(speech_update.mean())
         noise_update = vad_mean < self.mask_thresh_noise
-        print(noise_update.mean())
+        # print(noise_update.mean())
         self.update_psds(ffts, speech_update, noise_update)
         self.update_ev_by_power_iteration()
         result_fftd = self.fast_mvdr(vad_mask.reshape(self.fft_len, self.num_of_mics) ** 2 * ffts)
