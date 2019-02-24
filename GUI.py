@@ -56,6 +56,7 @@ class LocalizationWidget(pg.PlotWidget):
     read_collected = QtCore.pyqtSignal(float)
     def __init__(self):
         super().__init__()
+
         self.plot = pg.PlotItem()
         self.addItem(self.plot)
         self.heightForWidth = 1
@@ -108,6 +109,46 @@ def localization_callback(client, userdata, message):
 def configuration_callback(client, userdata, message):
     userdata.config_change(message.payload)
 
+class AboutWidgetSignals(QtCore.QObject):
+    # SIGNALS
+    CLOSE = QtCore.pyqtSignal()
+
+class AboutWidget(QWidget):
+    def __init__(self, parent=None):
+        super(AboutWidget, self).__init__(parent)
+
+        self.setWindowFlags(QtCore.Qt.FramelessWindowHint)
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+
+        self.fillColor = QtGui.QColor(30, 30, 30, 120)
+        self.penColor = QtGui.QColor("#333333")
+
+        self.popup_fillColor = QtGui.QColor(240, 240, 240, 255)
+        self.popup_penColor = QtGui.QColor(200, 200, 200, 255)
+
+        self.about_window = QtWebEngineWidgets.QWebEngineView(self)
+        self.about_window.load(QtCore.QUrl().fromLocalFile('/home/mateusz/PICTEC/DASH/DASH/showcase.html'))
+
+        self.about_window.setMinimumSize(1020, 760)
+        self.about_window.move(parent.rect().center() - self.about_window.rect().center())
+
+        self.close_btn = QtWidgets.QPushButton(self.about_window)
+        self.close_btn.setText("x")
+        font = QtGui.QFont()
+        font.setPixelSize(18)
+        font.setBold(True)
+        self.close_btn.setFont(font)
+        self.close_btn.setStyleSheet("background-color: rgb(0, 0, 0, 0)")
+        self.close_btn.setFixedSize(30, 30)
+        self.close_btn.move(990, 0)
+        self.close_btn.clicked.connect(self._onclose)
+
+        self.SIGNALS = AboutWidgetSignals()
+
+    def _onclose(self):
+        self.SIGNALS.CLOSE.emit()
+
+
 class GUI(QMainWindow):
     """
     Interface class for graphical user interface for our demonstration
@@ -118,8 +159,6 @@ class GUI(QMainWindow):
         self.screen_width = width
         self.screen_height = height
 
-        self.about_window = QtWebEngineWidgets.QWebEngineView()
-        self.about_window.load(QtCore.QUrl().fromLocalFile( '/home/nvidia/DASH/showcase.html'))
         self.initUI()
 
         self.client = mqtt.Client('GUI')
@@ -139,6 +178,9 @@ class GUI(QMainWindow):
 
         self.in_spec_i = 5
         self.out_spec_i = 5
+
+        self._popframe = None
+        self._popflag = False
 
     def initUI(self):
         self.setStyleSheet('background-color: #423b6a;')
@@ -179,7 +221,7 @@ class GUI(QMainWindow):
         self.combo_config.activated[str].connect(self.publish_config)
 
         self.button_about = QPushButton('About', self.centralWidget)
-        self.button_about.clicked.connect(self.about)
+        self.button_about.clicked.connect(self._onpopup)
 
         self.button_exit = QPushButton('Exit', self.centralWidget)
         self.button_exit.clicked.connect(self.close)
@@ -295,6 +337,18 @@ class GUI(QMainWindow):
 
         Once started it shouldn't be disableable unless app has to be stopped
         """
+
+    def _onpopup(self):
+        self._popframe = AboutWidget(self)
+        self._popframe.move(0, 0)
+        self._popframe.resize(self.width(), self.height())
+        self._popframe.SIGNALS.CLOSE.connect(self._closepopup)
+        self._popflag = True
+        self._popframe.show()
+
+    def _closepopup(self):
+        self._popframe.close()
+        self._popflag = False
 
     def start(self):
         self.client.publish('dash.control', 'START')
