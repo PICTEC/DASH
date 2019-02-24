@@ -253,6 +253,8 @@ class Audio:
         self.in_power = 0
         self.in_power_i = 0
 
+        self.stopped = True
+
     def write_to_output(self, arr):
         """Decode values and pass it to the buffer
 
@@ -319,6 +321,7 @@ class Audio:
         self.input_dtype = self.in_thread.input_dtype
         self.in_thread.start()
         self.out_thread.start()
+        self.stopped = False
 
     def __enter__(self):
         self.open()
@@ -327,11 +330,13 @@ class Audio:
     def close(self):
         """Close all threads
         """
-        self.in_thread.stop()
-        self.out_thread.stop()
-        self.in_thread = None
-        self.out_thread = None
-        self.p.terminate()
+        if not self.stopped:
+	        self.stopped = True
+	        self.in_thread.stop()
+	        self.out_thread.stop()
+	        self.in_thread = None
+	        self.out_thread = None
+	        self.p.terminate()
 
         # print('Mean input power:', self.in_power / self.in_power_i)
         # print('Mean output power:', self.out_power / self.out_power_i)
