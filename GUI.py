@@ -129,7 +129,7 @@ class AboutWidget(QWidget):
         self.about_window = QtWebEngineWidgets.QWebEngineView(self)
         self.about_window.load(QtCore.QUrl().fromLocalFile('/home/mateusz/PICTEC/DASH/DASH/showcase.html'))
 
-        self.about_window.setMinimumSize(1020, 760)
+        self.about_window.setMinimumSize(1200, 700)
         self.about_window.move(parent.rect().center() - self.about_window.rect().center())
 
         self.close_btn = QtWidgets.QPushButton(self.about_window)
@@ -141,7 +141,7 @@ class AboutWidget(QWidget):
         self.close_btn.setFont(font)
         self.close_btn.setStyleSheet("background-color: rgb(19, 134, 111, 255)")
         self.close_btn.setFixedSize(30, 30)
-        self.close_btn.move(990, 0)
+        self.close_btn.move(1170, 0)
         self.close_btn.clicked.connect(self._onclose)
 
         self.SIGNALS = AboutWidgetSignals()
