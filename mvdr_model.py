@@ -84,7 +84,7 @@ class Model:
             ffts = ffts[:, self.choose]
         prep = ffts.T.reshape(self.num_of_mics, 1, -1)
         prep = np.abs(prep)
-        self.doa = self.doa_ma * self.doa + (1 - self.doa_ma) * self.calc_angle(prep)
+        self.doa = self.doa_ma * self.doa + (1 - self.doa_ma) * self.calc_angle(ffts)
         response = self.session.run(self.output,
             feed_dict={self.input: prep})
         vad_mask = np.transpose(response, [2, 0, 1])

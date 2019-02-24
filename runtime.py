@@ -97,6 +97,7 @@ class Runtime:
         config = [self.default, {v["name"]: k for k,v in self.configurations.items()}]
         self.client.publish("dash.config", json.dumps(config), retain=True)
         self.Q = []
+        self.random_location = 0
 
     def send_message(self, in_spec, out_spec, location):
         self.client.publish("dash.in", in_spec.tobytes())
@@ -104,7 +105,9 @@ class Runtime:
         if location is not None:
             self.client.publish("dash.pos", location)
         else:
-            self.client.publish("dash.pos", random.random())
+            self.random_location += 0.1
+            self.random_location = self.random_location % 6.283
+            self.client.publish("dash.pos", self.random_location)
 
     def check_queue(self):
         """
@@ -202,6 +205,7 @@ class Runtime:
                 self.check_queue()
                 if hasattr(self.model, "doa"):
                     self.send_message(in_sample, out_plot, self.model.doa)
+                    print(self.model.doa)
                 else:
                     self.send_message(in_sample, out_plot, None)
 

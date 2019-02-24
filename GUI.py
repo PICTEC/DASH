@@ -127,7 +127,7 @@ class AboutWidget(QWidget):
         self.popup_penColor = QtGui.QColor(200, 200, 200, 255)
 
         self.about_window = QtWebEngineWidgets.QWebEngineView(self)
-        self.about_window.load(QtCore.QUrl().fromLocalFile('/home/mateusz/PICTEC/DASH/DASH/showcase.html'))
+        self.about_window.load(QtCore.QUrl().fromLocalFile('/home/nvidia/DASH/showcase.html'))
 
         self.about_window.setMinimumSize(1020, 760)
         self.about_window.move(parent.rect().center() - self.about_window.rect().center())
