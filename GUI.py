@@ -294,11 +294,11 @@ class GUI(QMainWindow):
         localization_logo_layout = QHBoxLayout()
 
         label_localization = QLabel(self.centralWidget)
-        label_localization.setText("<font color='White'> Speaker localization </font")
+        label_localization.setText("<font color='White'> Visit us at... </font")
         label_localization.setAlignment(QtCore.Qt.AlignCenter)
-        self.localization = LocalizationWidget()
-        self.localization.hideAxis('bottom')
-        self.localization.hideAxis('left')
+        # self.localization = LocalizationWidget()
+        # self.localization.hideAxis('bottom')
+        # self.localization.hideAxis('left')
         #self.localization.heightForWidth(1)
 
         logo = QLabel(self.centralWidget)
@@ -306,15 +306,19 @@ class GUI(QMainWindow):
         #logo.setPixmap(logo_pixmap.scaled(560, 420))
         logo.setPixmap(logo_pixmap.scaled(int(0.3*self.screen_width), int(0.4*self.screen_height)))
 
+        qr_code = QLabel(self.centralWidget)
+        qr_code_pixmap = QPixmap('bin/qrcode.png')
+        qr_code.setPixmap(qr_code_pixmap.scaled(int(0.3*self.screen_width), int(0.45*self.screen_height)))
+
         localization_plot_layout.addStretch()
-        localization_plot_layout.addWidget(self.localization)
+        localization_plot_layout.addWidget(qr_code)
         localization_plot_layout.addStretch()
 
         localization_logo_layout.addStretch()
         localization_logo_layout.addWidget(logo)
         localization_logo_layout.addStretch()
 
-        localization_layout.addSpacing(50)
+        # localization_layout.addSpacing(50)
         localization_layout.addWidget(label_localization)
         localization_layout.addLayout(localization_plot_layout)
         #localization_layout.addStretch()
@@ -329,8 +333,8 @@ class GUI(QMainWindow):
         self.output_spectrogram.read_collected.connect(self.output_spectrogram.update)
         self.out_spectrogram_signal = self.output_spectrogram.read_collected
 
-        self.localization.read_collected.connect(self.localization.update)
-        self.localization_signal = self.localization.read_collected
+        # self.localization.read_collected.connect(self.localization.update)
+        # self.localization_signal = self.localization.read_collected
 
     def run(self):
         """
@@ -374,7 +378,7 @@ class GUI(QMainWindow):
         localisation and also keeps a history of several previous localisations of the same
         source. The points from former timesteps should be more and more transparent.
         """
-        self.localization_signal.emit(point)
+        # self.localization_signal.emit(point)
 
     def put_input_spectrogram(self, bin):
         """

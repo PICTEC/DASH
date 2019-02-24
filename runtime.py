@@ -205,7 +205,7 @@ class Runtime:
                 self.check_queue()
                 if hasattr(self.model, "doa"):
                     self.send_message(in_sample, out_plot, self.model.doa)
-                    print(self.model.doa)
+                    # print(self.model.doa)
                 else:
                     self.send_message(in_sample, out_plot, None)
 
