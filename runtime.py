@@ -4,6 +4,7 @@ import argparse
 import gc
 import json
 import logging
+import numpy as np
 import paho.mqtt.client as mqtt
 import random
 import time
@@ -16,7 +17,7 @@ logger = logging.getLogger("dash.runtime")
 from audio import Audio
 from model import DolphinModel, NullModel
 from mvdr_model import Model as MVDRModel
-from mono_model import MonoModel
+from mono_model import MonoModel, MonoModelWindowed
 from post_filter import DAEPostFilter, NullPostFilter
 from utils import fft, Remix, AdaptiveGain
 import cProfile
@@ -26,7 +27,8 @@ MODEL_LIB = {
     "beam": MVDRModel,
     "dolphin": DolphinModel,
     "null": NullModel,
-    "mono": MonoModel
+    "mono": MonoModel,
+    "mono-pf": MonoModelWindowed
 }
 
 POST_FILTER_LIB = {
@@ -38,12 +40,20 @@ POST_FILTER_LIB = {
 class Runtime:
     def __init__(self):
         self.configurations = {
-            "postfilter": {
-                "name": "Monophonic Denoising Autoencoder",
+            "4ch-lstm-mvdr": {
+                "name": "4-channel Deep MVDR",
                 "configs": [
-                    "configs/input_config.yaml",
-                    "configs/postfilter.yaml",
-                    "configs/null_model.yaml"
+                    "configs/large_hop_input_config.yaml",
+                    "configs/null_postfilter.yaml",
+                    "configs/4ch-lstm_mvdr_config.yaml"
+                ]
+            },
+            "lstm-mvdr": {
+                "name": "8-channel Deep MVDR",
+                "configs": [
+                    "configs/large_hop_input_config.yaml",
+                    "configs/null_postfilter.yaml",
+                    "configs/lstm_mvdr_config.yaml"
                 ]
             },
             "small-lstm": {
@@ -54,17 +64,24 @@ class Runtime:
                     "configs/1_layer.yaml"
                 ]
             },
-            "lstm-mvdr": {
-                "name": "Deep MVDR",
+            "larger-lstm": {
+                "name": "Monophonic LSTM Masking - v2",
                 "configs": [
                     "configs/large_hop_input_config.yaml",
                     "configs/null_postfilter.yaml",
-                    "configs/lstm_mvdr_model.yaml"
+                    "configs/3_layer.yaml"
                 ]
             },
-
+            "postfilter": {
+                "name": "Monophonic Denoising Autoencoder",
+                "configs": [
+                    "configs/large_hop_input_config.yaml",
+                    "configs/postfilter.yaml",
+                    "configs/null_model.yaml"
+                ]
+            },
         }
-        self.default = "postfilter"
+        self.default = "4ch-lstm-mvdr"
         self.TIMEIT = None
         self.audio = None
         self.play_processed = True
@@ -143,17 +160,19 @@ class Runtime:
         if audio_config is None or post_filter_config is None or model_config is None:
             audio_config, post_filter_config, model_config = [yaml.load(open(x)) for x in self.configurations[self.default]["configs"]]
         self.build(audio_config, post_filter_config, model_config)
-        in_gain = AdaptiveGain()
+        in_gain = AdaptiveGain(level=0.005, max_gain=10)
         out_gain = AdaptiveGain()
         remixer = Remix(buffer_size=self.audio.buffer_size, buffer_hop=self.audio.buffer_hop,
                         channels=self.audio.n_out_channels)
+        # initialize FFT
+        fft(np.random.random([self.audio.buffer_size, self.audio.n_in_channels]), self.audio.buffer_size, self.audio.n_in_channels)
         with self.audio:
             while True:
                 if self.TIMEIT:
                     ft = time.time()
                     t = time.time()
                 sample = self.audio.get_input()
-                # sample = in_gain.process(sample)
+                sample = in_gain.process(sample)
                 if self.TIMEIT:
                     logger.info("Acquisition time {}ms".format(1000 * (time.time() - t)))
                     t = time.time()
@@ -181,8 +200,10 @@ class Runtime:
                     logger.info("Resampling and output {}ms".format(1000 * (time.time() - t)))
                     logger.info("Iteration runtime {}ms".format(1000 * (time.time() - ft)))
                 self.check_queue()
-                self.send_message(in_sample, out_plot, None)
-
+                if hasattr(self.model, "doa"):
+                    self.send_message(in_sample, out_plot, self.model.doa)
+                else:
+                    self.send_message(in_sample, out_plot, None)
 
 def get_args():
     parser = argparse.ArgumentParser(description="Showcase of speech enhancement technologies.\n\n"

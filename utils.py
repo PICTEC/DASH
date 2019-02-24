@@ -157,7 +157,7 @@ def fast_inverse(series):
 
 
 class AdaptiveGain:
-    def __init__(self, level=0.005, update_win=0.975, max_gain=3):
+    def __init__(self, level=0.005, update_win=0.975, max_gain=10):
         self.level = level
         self.current_level = level
         self.update_win = update_win

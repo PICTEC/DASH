@@ -103,7 +103,23 @@ def training(dataset, path):
     save_model(model, path)  # create postfilter object...
 
 
-imports = {"StopOnConvergence": StopOnConvergence, "tf": tf}
+
+from keras.constraints import Constraint
+
+class Cons(Constraint):
+    def __call__(self, w):
+        K.concatenate([w[:16, :, :, :], K.tile(K.ones([1, 1, 1, 1]), [1, -1, -1, -1])], axis=0)
+        return w
+
+
+
+class Cons8(Constraint):
+    def __call__(self, w):
+        K.concatenate([w[:8, :, :, :], K.tile(K.ones([1, 1, 1, 1]), [1, -1, -1, -1])], axis=0)
+        return w
+
+
+imports = {"StopOnConvergence": StopOnConvergence, "tf": tf, "Cons8": Cons8, "Cons": Cons}
 
 
 if __name__ == "__main__":

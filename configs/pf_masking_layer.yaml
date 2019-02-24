@@ -1,0 +1,4 @@
+mode: "mono-pf"
+path: "storage/dae-larger2.h5"
+scaling_factor: 3
+clip: 0.3

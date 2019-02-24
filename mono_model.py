@@ -7,9 +7,11 @@ import time
 
 logger = logging.getLogger("dash.mono_model")
 
+
 class MonoModel:
-    def __init__(self, path, scaling_factor):
+    def __init__(self, path, scaling_factor, clip=0):
         logger.info("Loading TF model")
+        self.clip = clip
         self.model = keras.models.load_model(path)
         logger.info("TF model loaded")
         self.scaling_factor = float(scaling_factor)
@@ -26,6 +28,12 @@ class MonoModel:
         prep = np.abs(prep)
         response = self.session.run(self.output,
             feed_dict={self.input: prep})
-        response = np.clip(response, 0, None)
+        response = np.clip(response, 0, None) ** self.scaling_factor
+        response[response < self.clip] = 0
         response = response[0, 0, :] * sample[:, 0]
         return response.reshape(-1, 1)
+
+
+
+class MonoModelWindowed:
+    pass

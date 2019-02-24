@@ -1,7 +1,22 @@
 <html>
+<head>
+<style>
+body {
+	color: #ffffff;
+	background-color: #13866F;
+	font-family: "Open Sans", sans-serif;
+	text-align: justify;
+}
+
+a, h3, h4 {
+	color: #423B6A;
+}
+
+</style>
+</head>
 <body>
     <h3>
-        PICTEC acoustic model zoo
+        PICTEC speech enhancement model zoo
     </h3>
     <p>
         Speech technologies related both to voice communication and automated
@@ -9,7 +24,22 @@
         Frontend speech technologies are key to high quality and performance.
        	In this demonstrator, we showcase various mono- and multi-channel speech
         enhancement algorithms.
+
+        There are three approaches used in this demonstrator. Soft masking is
+        used to determine which time-frequency bins correspond to speech
+        and which to noise, and use this to filter out the undesired noise.
+        Deep autoencoders are neural networks trained to reconstruct original signal
+        from contaminated source. Beamforming techniques use information about
+        shift in time of arrival to each microphone to spatially filter out
+        signal coming from different directions. Our deep beamformer uses LSTMs
+        to obtain spatial parameters of the speech signal.
     </p>
+	<h4>
+		How to use
+	</h4>
+	<p>
+		You may choose any of the models presented and listen to both input and output signals in the headphones. The application may take some time to load to ensure that chosen model runs without interruption.
+	</p>
     <p>
         There are three general approaches used in this demonstrator. Masking is used to determine which
         time-frequency bins correspond to desired signal and which to noise and use this information to block
@@ -22,14 +52,15 @@
         About us
     </h4>
     <div>
-        <div style="display:inline-block; width: 55%">
         <p>
-            Some promotional text here
+			PICTEC is a non-public, independent research institute that performs high-quality applied research in the field of smart and deep technologies. We are bridging academia and business/industry to maximize efficiency with which innovation is implemented. PICTEC is located in Gdansk, Pomeranian region, Poland, and we have a vision of intelligent Pomerania that has a significant contribution to the national and global economy.
+		</p>
+		<p>
+        	We enjoy working on innovative ideas, researching, applying knowledge, advancing the state of the art. We love seeing results of our work in practical applications that improve lives of others. We perform contract applied research in the field of smart signal and data processing.
         </p>
-        </div>
-        <div style="display:inline-block; width: 40%">
-          	<img alt="Our photo here" />
-        </div>
+        <p>
+        	More on <a href="https://pictec.eu">https://pictec.eu</a>
+        </p>
     </div>
 </body>
 </html>
