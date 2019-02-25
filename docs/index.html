@@ -20,11 +20,12 @@
   <div class="main">
   	<h3>What is DASH?</h3>
   	<p>
-  		DASH present some simple implementations of speech pre-processing algorithms.
+  		DASH present some simple implementations of speech pre-processing algorithms. It has three main modules implemented: MVDR, speech masking and denoising autoencoders.
+  		It is optimized to run in real time on Nvidia Xavier.
   	</p>
   	<h3>Why?</h3>
   	<p>
-  		...
+  		
   	</p>
   	<h3>MVDR beamformer</h3>
   	<p>
@@ -62,7 +63,7 @@
   	<p>
   		Having obtained a mask for speech and noise, one can use it to determine in which moments appropriate source is active. When a given source is active, its' covariance matrix is updated using the following equation:
    	</p>
-	<img style="background-color:white; margin-left:auto; 	margin-right:auto;" src="bin/mvdr.gif" />
+	<img style="background-color:white; margin-left:auto; 	margin-right:auto;" src="bin/update_rule.gif" />
 	<p>
 		There are two matrices that we want to track. Noise covariance matrix is used by itself in the MVDR equation.
 		In turn, principal eigenvector of speech covariance matrix corresponds to the estimated location of the loudest speech source at given frequency. This approach is a good replacement of traditional direction estimation methods, which required
@@ -81,6 +82,10 @@
 	<p>
 		See <a href="documentation.html#PostFilter">Postfilter in documentation</a>
    	</p>
+  	<h3>Data</h3>
+  	<p>
+  		We have used LibriSpeech dataset for clean speech recordings (however they don't offer highest quality, but were sufficient for basic implementation). We also used recordings acquired in food courts in Gdańsk.
+	</p>
   </div>
   <div class="right-column"></div>
 </div> 
