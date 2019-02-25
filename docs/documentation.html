@@ -1,26 +1,298 @@
-<html>
-<head>
-<meta charset="utf-8"  name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="stylesheet" type="text/css" href="style.css" />
-<title>DASH - Deep Audio Showcase — PICTEC Foundation</title>
-</head>
-<body>
-<div class="navbar">
-<ul class="navbar-links">
-<img src="bin/logo.png" width="50px" />
-<li><a href="index.html">Home</a></li>
-<li><a href="documentation.html">Documentation</a></li>
-<li><a href="matrix_spec.html">Microphone matrix specification</a></li>
-<li><a href="lessons_learnt.html">Lessons learnt</a></li>
-<li><a href="team.html">Team</a></li>
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>DASH documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="_static/language_data.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="welcome-to-dash-s-documentation">
+<h1>Welcome to DASH’s documentation!<a class="headerlink" href="#welcome-to-dash-s-documentation" title="Permalink to this headline">¶</a></h1>
+<div class="toctree-wrapper compound">
+</div>
+<p>This is a listing of DASH classes that may be relevant for further development and
+understanding of code. This is by no means exhaustive or complete, but should give
+a highlight of how the demonstrator works.</p>
+<div class="section" id="module-mono_model">
+<span id="speech-enhancement-modules"></span><h2>Speech enhancement modules<a class="headerlink" href="#module-mono_model" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="mono_model.MonoModel">
+<em class="property">class </em><code class="descclassname">mono_model.</code><code class="descname">MonoModel</code><span class="sig-paren">(</span><em>path</em>, <em>scaling_factor</em>, <em>clip=0</em><span class="sig-paren">)</span><a class="headerlink" href="#mono_model.MonoModel" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<span class="target" id="module-mvdr_model"></span><dl class="class">
+<dt id="mvdr_model.Model">
+<em class="property">class </em><code class="descclassname">mvdr_model.</code><code class="descname">Model</code><span class="sig-paren">(</span><em>n</em>, <em>frame_len</em>, <em>delay_and_sum</em>, <em>use_channels</em>, <em>model_name</em>, <em>choose=None</em><span class="sig-paren">)</span><a class="headerlink" href="#mvdr_model.Model" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<span class="target" id="module-post_filter"></span><dl class="class">
+<dt id="post_filter.DAEPostFilter">
+<em class="property">class </em><code class="descclassname">post_filter.</code><code class="descname">DAEPostFilter</code><span class="sig-paren">(</span><em>fname='storage/dae-pf.h5'</em>, <em>n_fft=1024</em><span class="sig-paren">)</span><a class="headerlink" href="#post_filter.DAEPostFilter" title="Permalink to this definition">¶</a></dt>
+<dd><p>It is assumed that PostFilter preserves phase of original signal.</p>
+<dl class="classmethod">
+<dt id="post_filter.DAEPostFilter.train">
+<em class="property">classmethod </em><code class="descname">train</code><span class="sig-paren">(</span><em>model_config</em>, <em>train_X</em>, <em>train_Y</em>, <em>valid_ratio=0.1</em>, <em>path_to_save='storage/dae-pf.h5'</em>, <em>n_fft=512</em><span class="sig-paren">)</span><a class="headerlink" href="#post_filter.DAEPostFilter.train" title="Permalink to this definition">¶</a></dt>
+<dd><p>This should create a model from some training script…
+train_X should be padded by 16 from the beginning of the recording…
+n_fft - determines the size of the network</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-audio">
+<span id="preprocessing-modules"></span><h2>Preprocessing modules<a class="headerlink" href="#module-audio" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="audio.Audio">
+<em class="property">class </em><code class="descclassname">audio.</code><code class="descname">Audio</code><span class="sig-paren">(</span><em>buffer_size=1024</em>, <em>buffer_hop=128</em>, <em>sample_rate=16000</em>, <em>n_in_channels=6</em>, <em>n_out_channels=1</em>, <em>input_device_id=None</em>, <em>output_device_id=None</em>, <em>input_from_file=None</em>, <em>play_output=True</em>, <em>save_input=False</em>, <em>save_output=False</em>, <em>record_name=None</em><span class="sig-paren">)</span><a class="headerlink" href="#audio.Audio" title="Permalink to this definition">¶</a></dt>
+<dd><p>Class to record and play data</p>
+<p>Application can create an instance of this class and pass it to models.
+The application can use it’s methods (or methods as callbacks) to fetch
+some more data for next iteration of a model.
+Class should utilize sliding buffer, so user needs only to read that buffer,
+STFT it and the processing is set up.</p>
+<dl class="docutils">
+<dt>Args:</dt>
+<dd><p class="first">buffer_size (int, optional): number of samples in a single output frame
+buffer_hop (int, optional): number of samples that gets removed from a buffer on a single read
+sample_rate (int, optional): sample rate [Hz] of recording
+n_in_channels (int, optional): number of input channels
+n_out_channels (int, optional): number of output channels
+input_device_id (int, optional): Index of input Device to use
+output_device_id (int, optional): Index of input Device to use
+input_from_file (str, optional): Path to the file from which read input,</p>
+<blockquote>
+<div>if not provided, than it will be get input from input audio device</div></blockquote>
+<p>play_output (bool, optional): Play output to the speakers
+save_input (bool, optional): Save recorded input also to the file</p>
+<blockquote>
+<div>stored in ‘records/inputs/’, default set to False</div></blockquote>
+<dl class="docutils">
+<dt>save_output (bool, optional): Save played output also to the file</dt>
+<dd>stored in ‘records/outputs/’, default set to False</dd>
+</dl>
+<p class="last">record_name (str, optional): Name of the output file</p>
+</dd>
+</dl>
+<dl class="method">
+<dt id="audio.Audio.close">
+<code class="descname">close</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#audio.Audio.close" title="Permalink to this definition">¶</a></dt>
+<dd><p>Close all threads</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="audio.Audio.get_input">
+<code class="descname">get_input</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#audio.Audio.get_input" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get values from the buffer, encode it and return</p>
+<dl class="docutils">
+<dt>Retruns:</dt>
+<dd>np.array of the shape (buffer_size, n_in_channels)</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="audio.Audio.open">
+<code class="descname">open</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#audio.Audio.open" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create and start threads</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="audio.Audio.write_to_output">
+<code class="descname">write_to_output</code><span class="sig-paren">(</span><em>arr</em><span class="sig-paren">)</span><a class="headerlink" href="#audio.Audio.write_to_output" title="Permalink to this definition">¶</a></dt>
+<dd><p>Decode values and pass it to the buffer</p>
+<dl class="docutils">
+<dt>Args:</dt>
+<dd>arr (np.array of shape(buffer_hop, n_out_channels)): Frames to be played</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="audio.PlayThread">
+<em class="property">class </em><code class="descclassname">audio.</code><code class="descname">PlayThread</code><span class="sig-paren">(</span><em>p</em>, <em>buffer</em>, <em>hop</em>, <em>sample_rate</em>, <em>channels</em>, <em>id=None</em>, <em>play=True</em>, <em>record_to_file=False</em>, <em>record_name=None</em><span class="sig-paren">)</span><a class="headerlink" href="#audio.PlayThread" title="Permalink to this definition">¶</a></dt>
+<dd><p>Thread which pass data stored in the buffer to the speakers</p>
+<dl class="docutils">
+<dt>Args:</dt>
+<dd><p class="first">p (pyAudio): Python interface to PortAudio
+buffer (queue.Queue): Queue with byte string to be played
+hop (int): Number of samples to play in single read
+sample_rate (int): Sample rate [Hz] of playing
+channels (int): Number of channels to play
+id (int, optional): Index of output Device to use
+play (bool, optional): Play output to the speakers
+record_to_file (bool, optional): Save played output also to the file</p>
+<blockquote>
+<div>stored in ‘records/outputs/’, default set to False</div></blockquote>
+<p class="last">record_name (str, optional): Name of the saved file</p>
+</dd>
+</dl>
+<dl class="method">
+<dt id="audio.PlayThread.run">
+<code class="descname">run</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#audio.PlayThread.run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Method representing the thread’s activity</p>
+<p>Wait until buffer is full, than play frames from the buffer until
+thread is stopped.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="audio.PlayThread.stop">
+<code class="descname">stop</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#audio.PlayThread.stop" title="Permalink to this definition">¶</a></dt>
+<dd><p>Stop thread, play what’s left in the buffer and close stream</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="audio.ReadThread">
+<em class="property">class </em><code class="descclassname">audio.</code><code class="descname">ReadThread</code><span class="sig-paren">(</span><em>p</em>, <em>buffer</em>, <em>hop</em>, <em>sample_rate</em>, <em>channels</em>, <em>id=None</em>, <em>from_file=None</em>, <em>record_to_file=True</em><span class="sig-paren">)</span><a class="headerlink" href="#audio.ReadThread" title="Permalink to this definition">¶</a></dt>
+<dd><p>Thread which read data from microphones and pass it to the buffer</p>
+<dl class="docutils">
+<dt>Args:</dt>
+<dd><p class="first">p (pyAudio): Python interface to PortAudio
+buffer (queue.Queue): Queue where write byte strings
+hop (int): Number of samples to record in single read
+sample_rate (int): Sample rate [Hz] of recording
+channels (int): Number of channels to record
+id (int, optional): Index of input Device to use
+from_file (str, optional): Path to the file from which read input, if not</p>
+<blockquote>
+<div>provided, than it will be get input from input audio device</div></blockquote>
+<dl class="last docutils">
+<dt>record_to_file (bool, optional): Save played output also to the file</dt>
+<dd>stored in ‘records/outputs/’, default set to False</dd>
+</dl>
+</dd>
+</dl>
+<dl class="method">
+<dt id="audio.ReadThread.run">
+<code class="descname">run</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#audio.ReadThread.run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Method representing the thread’s activity</p>
+<p>Get data from microphones or from file and put it to the buffer</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="audio.ReadThread.stop">
+<code class="descname">stop</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#audio.ReadThread.stop" title="Permalink to this definition">¶</a></dt>
+<dd><p>Stop thread and close stream</p>
+</dd></dl>
+
+</dd></dl>
+
+<span class="target" id="module-matrix_mixer"></span><span class="target" id="module-runtime"></span><dl class="class">
+<dt id="runtime.Runtime">
+<em class="property">class </em><code class="descclassname">runtime.</code><code class="descname">Runtime</code><a class="headerlink" href="#runtime.Runtime" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="method">
+<dt id="runtime.Runtime.check_queue">
+<code class="descname">check_queue</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#runtime.Runtime.check_queue" title="Permalink to this definition">¶</a></dt>
+<dd><p>If message to change model - call rebuild, if flag is changed - change proper variable</p>
+<p>TODO: start/stop messages</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="runtime.Runtime.main">
+<code class="descname">main</code><span class="sig-paren">(</span><em>audio_config=None</em>, <em>post_filter_config=None</em>, <em>model_config=None</em><span class="sig-paren">)</span><a class="headerlink" href="#runtime.Runtime.main" title="Permalink to this definition">¶</a></dt>
+<dd><p>Main processing loop, all processing should be there, all configuration
+should be elsewhere, training should be done in other files.</p>
+</dd></dl>
+
+</dd></dl>
+
+<span class="target" id="module-utils"></span><dl class="function">
+<dt id="utils.BufferMixin">
+<code class="descclassname">utils.</code><code class="descname">BufferMixin</code><span class="sig-paren">(</span><em>buffer_size=[1, 257], dtype=&lt;class 'numpy.float32'&gt;</em><span class="sig-paren">)</span><a class="headerlink" href="#utils.BufferMixin" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="class">
+<dt id="utils.Remix">
+<em class="property">class </em><code class="descclassname">utils.</code><code class="descname">Remix</code><span class="sig-paren">(</span><em>buffer_size</em>, <em>buffer_hop</em>, <em>channels</em><span class="sig-paren">)</span><a class="headerlink" href="#utils.Remix" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="class">
+<dt id="utils.AdaptiveGain">
+<em class="property">class </em><code class="descclassname">utils.</code><code class="descname">AdaptiveGain</code><span class="sig-paren">(</span><em>level=0.005</em>, <em>update_win=0.975</em>, <em>max_gain=10</em><span class="sig-paren">)</span><a class="headerlink" href="#utils.AdaptiveGain" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<p class="logo">
+  <a href="index.html#document-index">
+    <img class="logo" src="_static/bin/logo.png" alt="Logo"/>
+    
+  </a>
+</p>
+
+
+
+<p class="blurb">Demonstrator of speech preprocessing technologies</p>
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=PICTEC&repo=DASH&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+<h3>Navigation</h3>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html#document-index">Documentation overview</a><ul>
+  </ul></li>
 </ul>
 </div>
-<div class="three">
-  <div class="left-column"><p></p></div>
-  <div class="main">
-  	<h3>Documentation in construction...</h3>
-  </div>
-  <div class="right-column"></div>
-</div> 
-</body>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Pictec Foundation.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.8.4</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+    </div>
+
+    
+
+    
+  </body>
 </html>
