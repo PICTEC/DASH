@@ -128,3 +128,7 @@ storage/*
 # all models
 *.h5
 */*.h5
+
+# IDEA path
+.idea
+.idea/*
