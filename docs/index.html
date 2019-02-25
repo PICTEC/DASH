@@ -1,5 +1,88 @@
 <html>
+<head>
+<meta charset="utf-8"  name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" type="text/css" href="style.css" />
+<title>DASH - Deep Audio Showcase — PICTEC Foundation</title>
+</head>
 <body>
-Webpage to be done!
+<div class="navbar">
+<ul class="navbar-links">
+<img src="bin/logo.png" width="50px" />
+<li><a href="">Home</a></li>
+<li><a href="documentation.html">Documentation</a></li>
+<li><a href="matrix_spec.html">Microphone matrix specification</a></li>
+<li><a href="lessons_learnt.html">Lessons learnt</a></li>
+<li><a href="team.html">Team</a></li>
+</ul>
+</div>
+<div class="three">
+  <div class="left-column"><p></p></div>
+  <div class="main">
+  	<h3>What is DASH?</h3>
+  	<p>
+  		DASH present some simple implementations of speech pre-processing algorithms.
+  	</p>
+  	<h3>Why?</h3>
+  	<p>
+  		...
+  	</p>
+  	<h3>MVDR beamformer</h3>
+  	<p>
+		Using microphone matrix generates several separate channels of audio, which are related in time. Distances between microphones translate directly to differences in time of arrival of the signal to the microphone.
+		This in turn creates offset of the signal at each microphone. Knowing direction of the signal, one may shift the signal by specific offsets and sum them to obtain constructive interference of signals arriving from the desired direction.
+	</p>
+  	<p>
+  		Beamformers work exactly this way. Delay-and-sum, the most simple beamformer, implements exactly this behaviour. However, such a naive approach cannot attenutate noise from other directions per se, only enhancing the desired one by a factor of a number of microphones.
+  		MVDR beamformer is a solution to an equation that maximizes SNR of signals coming from desired direction. The equation is as follows:
+	</p>
+	<img style="background-color:white; margin-left:auto; 	margin-right:auto;" src="bin/mvdr.gif" />
+	<p>
+		MVDR relies on two parameters: a transmission vector, which describes spatial configuration of the microphones and steering direction, and covariance matrix of noise.
+		While the first one may be adjusted manually, covariance matrix requires determination of time-frequency bins which convey mostly noise.
+		Due to sparsity of speech signal this feat is not as difficult as it seems. Simple MVDR implementation may contain VAD module, which tells the beamformer
+		to update the matrix in the moments of silence. However VAD works holistically and cannot be reliably used if speech is rather continuous. There are multiple moments, where noise signal can be reliably obtained at selected frequencies. This is where the deep component kicks in.
+	</p>
+	<p>
+		See <a href="documentation.html#MVDR">MVDR in documentation</a>
+	</p>
+  	<h3>Speech masking</h3>
+  	<p>
+  		Masks for speech may be obtained using various techniques, e.g. non-negative matrix factorization. In the demonstrator we
+  		use two different networks based on LSTM layers. LSTM layers contain time-dependency that helps it remember characteristics of speaker
+  		and background noise.
+  	</p>
+  	<p>
+  		It should be said that proper speech masking may be used with good results to produce monophonic denoised speech signal.
+  		Effects are better if outputs from network are scaled by some factor and cut off. Implementation of such a model is attached in the demonstrator.
+  	</p>
+  	<p>
+		See <a href="documentation.html#MonoModel">Monophonic enhancement in documentation</a>
+   	</p>
+  	<h3>Deep MVDR</h3>
+  	<p>
+  		Having obtained a mask for speech and noise, one can use it to determine in which moments appropriate source is active. When a given source is active, its' covariance matrix is updated using the following equation:
+   	</p>
+	<img style="background-color:white; margin-left:auto; 	margin-right:auto;" src="bin/mvdr.gif" />
+	<p>
+		There are two matrices that we want to track. Noise covariance matrix is used by itself in the MVDR equation.
+		In turn, principal eigenvector of speech covariance matrix corresponds to the estimated location of the loudest speech source at given frequency. This approach is a good replacement of traditional direction estimation methods, which required
+		a proper composition of results for different microphone pairs.
+	</p>
+  	<h3>Denoising autoencoder</h3>
+  	<p>
+  		Beamformer signal still contains noise, albeit attenuated. Properly trained autoencoder may be used as a post-processing step after speech beamforming.
+  		The issue is that the autoencoder as a neural network is sensitive to out-of-domain signal and cannot be easily generalized without a properly large dataset.
+  		In case of mismatched dataset the results may be in fact destructive. This is why the solution in the original demonstration does not have a postfilter.
+	</p>
+  	<p>
+  		Denoising autoencoders are however one of the tools of choice for reconstruction of speech is proper amount of data is provided. An example implementation
+  		is provided in the demonstration.
+	</p>
+	<p>
+		See <a href="documentation.html#PostFilter">Postfilter in documentation</a>
+   	</p>
+  </div>
+  <div class="right-column"></div>
+</div> 
 </body>
 </html>
