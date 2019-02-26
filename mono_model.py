@@ -9,7 +9,15 @@ logger = logging.getLogger("dash.mono_model")
 
 
 class MonoModel:
-    def __init__(self, path, scaling_factor, clip=0):
+    """
+    MonoModel wraps monophonic masking into a simple model usage within Runtime.
+    This models loads its' neural network from `path` and prepares it for fast
+    evaluation. Model is assumed to accept plain absolute values of spectrum and
+    return a soft mask for that spectrum. Masks are scaled and clipped before
+    application to the data.
+    """
+    
+    def __init__(self, path, scaling_factor=1, clip=0):
         logger.info("Loading TF model")
         self.clip = clip
         self.model = keras.models.load_model(path)
@@ -17,6 +25,9 @@ class MonoModel:
         self.scaling_factor = float(scaling_factor)
 
     def initialize(self):
+        """
+        Prepare the model - load all required data.
+        """
         self.model.reset_states()
         self.model._make_predict_function()
         self.input = self.model.input
@@ -24,6 +35,10 @@ class MonoModel:
         self.session = K.get_session()
 
     def process(self, sample):
+        """
+        Accept a single multichannel frame. Discard all but one channel
+        and perform masking on that channel.
+        """
         prep = sample[:, 0].reshape(1, 1, -1)
         prep = np.abs(prep)
         response = self.session.run(self.output,

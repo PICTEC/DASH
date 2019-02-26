@@ -8,6 +8,14 @@ import time
 
 
 class Model:
+    """
+    This class wraps the process of beamforming with MVDR and subsystemms requried for MVDR.
+    It loads a model from prespecified path, uses the outputs of the model
+    to determine dominant source and uses the dominant sources in updating covariance
+    matrices of both noise and speech. Covariance matrix of speech is used
+    to estimate direction of incidence of sound from the main source.
+    """
+
     def __init__(self, n, frame_len, delay_and_sum, use_channels, model_name, choose=None):
         self.model_path = model_name
         self.mask_thresh_speech = 0.7
@@ -53,6 +61,10 @@ class Model:
         # self.eigenvector2 = np.linalg.eig(self.psd_speech)[0]
 
     def gcc_phat(self, sigl_fft, sigr_fft, max_delay, distance):
+        """
+        Method for computing angle for a pair of microphones, used to localize the source.
+        Not used in the main pipeline.
+        """
         sigr_fft_star = np.conj(sigr_fft)
         cc = sigl_fft * sigr_fft_star
         cc_phat = cc / abs(cc)
@@ -67,6 +79,9 @@ class Model:
         return ang/2
 
     def initialize(self):
+        """
+        Initialize the model - preload and perform some dry runs o reduce latency
+        """
         self.model = keras.models.load_model(self.model_path)
         self.model._make_predict_function()
         self.input = self.model.input
@@ -80,6 +95,10 @@ class Model:
 
 
     def process(self, ffts):
+        """
+        Process the sample - accepts single time frame with multiple channels.
+        Returns beamformed signal. Uses LSTM masking as a part of beamforming process.
+        """
         if self.choose is not None:
             ffts = ffts[:, self.choose]
         prep = ffts.T.reshape(self.num_of_mics, 1, -1)

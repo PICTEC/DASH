@@ -10,7 +10,7 @@ We provide working implementation of MVDR beamforming with estimation of directi
 
 ### How to use
 
-Application works on top of basic JetPack installation. Python dependencies are listed in requirements. Other system-wide dependencies are not installed automatically - you should provide your own binaries from proper repositories.
+Application works on top of basic JetPack installation. Python dependencies are listed in requirements. Other system-wide dependencies are not installed automatically - you should provide your own binaries from proper repositories. In particular, _please provide your own Tensorflow installation_ to utilize your available hardware well.
 
 Application is to be installed on `/home/nvidia/DASH`. Launcher script (BeamBox.desktop) can be moved to Desktop for clickable launcher. This demo is build of two components - GUI and proper engine. You may launch them separately by using appropriate scripts. It is advisable to use launcher as calling method for `runtime.py` is verbose.
 

@@ -75,7 +75,8 @@ def faster_model(n_fft):
 
 class DAEPostFilter(BufferMixin([17, 257, 1], np.complex64)):
     """
-    It is assumed that PostFilter preserves phase of original signal.
+    Postfilter for signal based on DAE. The DAE accepts a context of time, therefore
+    class inherits BufferMixin. Class contains methods to train the postfilter.
     """
 
     _all_imports = {}
@@ -96,9 +97,16 @@ class DAEPostFilter(BufferMixin([17, 257, 1], np.complex64)):
         assert self.model.output_shape[-1] == fft_size, "Input shape is {}; model requires {}".format(fft_size, self.model.output_shape[-1])
 
     def initialize(self):
-        pass
+        """
+        Call this before processing starts
+        """
 
     def process(self, sample):
+        """
+        Accept single mono sample, push to the rolling buffer and then process the buffer
+        with the model. Input and output of model is log-power. Phase is reapplied at
+        the end of processing,
+        """
         self.buffer.push(sample)
         predictive = -np.log(np.abs(self.buffer.reshape([1, 17, 257])) ** 2 + 2e-12)
         result = self.session.run(self.output,

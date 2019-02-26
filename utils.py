@@ -8,11 +8,15 @@ import time
 import tensorflow
 
 def BufferMixin(buffer_size=[1, 257], dtype=np.float32):
+    """
+    Factory of classes that are rolling buffers of appropriate type
+    """
 
     class BufferMixinClass:
         """
         Adds a buffer that can be used to hold windows of time
-        (useful e.g. for convolution in time)
+        (useful e.g. for convolution in time). Such a class
+        is a np.ndarray with additional .push() method
         """
 
         class Buffer(np.ndarray):
@@ -31,6 +35,10 @@ def BufferMixin(buffer_size=[1, 257], dtype=np.float32):
 
 
 class Remix:
+    """
+    Reconstruction of signal by overlap and add
+    """
+
     def __init__(self, buffer_size, buffer_hop, channels):
         self.buffer_size = buffer_size
         self.buffer_hop = buffer_hop
@@ -40,6 +48,9 @@ class Remix:
         self.overlaps = self.buffer_size / self.buffer_hop
 
     def process(self, sample):
+        """
+        Method to call the reconstruction.
+        """
         self.buffer = np.roll(self.buffer, -self.buffer_hop, axis=0)
         self.buffer[-self.buffer_hop:,:] = 0
         r = ifft(sample, self.buffer_size, self.channels)
@@ -157,6 +168,12 @@ def fast_inverse(series):
 
 
 class AdaptiveGain:
+    """
+    Signal is enhanced in AdaptiveGain up to max_gain times to match
+    the prespecified power level. The current power level is a windowed
+    measurement to avoid suddent bursts of gain.
+    """
+    
     def __init__(self, level=0.005, update_win=0.975, max_gain=10):
         self.level = level
         self.current_level = level

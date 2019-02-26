@@ -41,18 +41,76 @@ a highlight of how the demonstrator works.</p>
 <span id="speech-enhancement-modules"></span><h2>Speech enhancement modules<a class="headerlink" href="#module-mono_model" title="Permalink to this headline">¶</a></h2>
 <dl class="class">
 <dt id="mono_model.MonoModel">
-<em class="property">class </em><code class="descclassname">mono_model.</code><code class="descname">MonoModel</code><span class="sig-paren">(</span><em>path</em>, <em>scaling_factor</em>, <em>clip=0</em><span class="sig-paren">)</span><a class="headerlink" href="#mono_model.MonoModel" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<em class="property">class </em><code class="descclassname">mono_model.</code><code class="descname">MonoModel</code><span class="sig-paren">(</span><em>path</em>, <em>scaling_factor=1</em>, <em>clip=0</em><span class="sig-paren">)</span><a class="headerlink" href="#mono_model.MonoModel" title="Permalink to this definition">¶</a></dt>
+<dd><p>MonoModel wraps monophonic masking into a simple model usage within Runtime.
+This models loads its’ neural network from <cite>path</cite> and prepares it for fast
+evaluation. Model is assumed to accept plain absolute values of spectrum and
+return a soft mask for that spectrum. Masks are scaled and clipped before
+application to the data.</p>
+<dl class="method">
+<dt id="mono_model.MonoModel.initialize">
+<code class="descname">initialize</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#mono_model.MonoModel.initialize" title="Permalink to this definition">¶</a></dt>
+<dd><p>Prepare the model - load all required data.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mono_model.MonoModel.process">
+<code class="descname">process</code><span class="sig-paren">(</span><em>sample</em><span class="sig-paren">)</span><a class="headerlink" href="#mono_model.MonoModel.process" title="Permalink to this definition">¶</a></dt>
+<dd><p>Accept a single multichannel frame. Discard all but one channel
+and perform masking on that channel.</p>
+</dd></dl>
+
+</dd></dl>
 
 <span class="target" id="module-mvdr_model"></span><dl class="class">
 <dt id="mvdr_model.Model">
 <em class="property">class </em><code class="descclassname">mvdr_model.</code><code class="descname">Model</code><span class="sig-paren">(</span><em>n</em>, <em>frame_len</em>, <em>delay_and_sum</em>, <em>use_channels</em>, <em>model_name</em>, <em>choose=None</em><span class="sig-paren">)</span><a class="headerlink" href="#mvdr_model.Model" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>This class wraps the process of beamforming with MVDR and subsystemms requried for MVDR.
+It loads a model from prespecified path, uses the outputs of the model
+to determine dominant source and uses the dominant sources in updating covariance
+matrices of both noise and speech. Covariance matrix of speech is used
+to estimate direction of incidence of sound from the main source.</p>
+<dl class="method">
+<dt id="mvdr_model.Model.gcc_phat">
+<code class="descname">gcc_phat</code><span class="sig-paren">(</span><em>sigl_fft</em>, <em>sigr_fft</em>, <em>max_delay</em>, <em>distance</em><span class="sig-paren">)</span><a class="headerlink" href="#mvdr_model.Model.gcc_phat" title="Permalink to this definition">¶</a></dt>
+<dd><p>Method for computing angle for a pair of microphones, used to localize the source.
+Not used in the main pipeline.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mvdr_model.Model.initialize">
+<code class="descname">initialize</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#mvdr_model.Model.initialize" title="Permalink to this definition">¶</a></dt>
+<dd><p>Initialize the model - preload and perform some dry runs o reduce latency</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="mvdr_model.Model.process">
+<code class="descname">process</code><span class="sig-paren">(</span><em>ffts</em><span class="sig-paren">)</span><a class="headerlink" href="#mvdr_model.Model.process" title="Permalink to this definition">¶</a></dt>
+<dd><p>Process the sample - accepts single time frame with multiple channels.
+Returns beamformed signal. Uses LSTM masking as a part of beamforming process.</p>
+</dd></dl>
+
+</dd></dl>
 
 <span class="target" id="module-post_filter"></span><dl class="class">
 <dt id="post_filter.DAEPostFilter">
 <em class="property">class </em><code class="descclassname">post_filter.</code><code class="descname">DAEPostFilter</code><span class="sig-paren">(</span><em>fname='storage/dae-pf.h5'</em>, <em>n_fft=1024</em><span class="sig-paren">)</span><a class="headerlink" href="#post_filter.DAEPostFilter" title="Permalink to this definition">¶</a></dt>
-<dd><p>It is assumed that PostFilter preserves phase of original signal.</p>
+<dd><p>Postfilter for signal based on DAE. The DAE accepts a context of time, therefore
+class inherits BufferMixin. Class contains methods to train the postfilter.</p>
+<dl class="method">
+<dt id="post_filter.DAEPostFilter.initialize">
+<code class="descname">initialize</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#post_filter.DAEPostFilter.initialize" title="Permalink to this definition">¶</a></dt>
+<dd><p>Call this before processing starts</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="post_filter.DAEPostFilter.process">
+<code class="descname">process</code><span class="sig-paren">(</span><em>sample</em><span class="sig-paren">)</span><a class="headerlink" href="#post_filter.DAEPostFilter.process" title="Permalink to this definition">¶</a></dt>
+<dd><p>Accept single mono sample, push to the rolling buffer and then process the buffer
+with the model. Input and output of model is log-power. Phase is reapplied at
+the end of processing,</p>
+</dd></dl>
+
 <dl class="classmethod">
 <dt id="post_filter.DAEPostFilter.train">
 <em class="property">classmethod </em><code class="descname">train</code><span class="sig-paren">(</span><em>model_config</em>, <em>train_X</em>, <em>train_Y</em>, <em>valid_ratio=0.1</em>, <em>path_to_save='storage/dae-pf.h5'</em>, <em>n_fft=512</em><span class="sig-paren">)</span><a class="headerlink" href="#post_filter.DAEPostFilter.train" title="Permalink to this definition">¶</a></dt>
@@ -203,14 +261,15 @@ from_file (str, optional): Path to the file from which read input, if not</p>
 
 </dd></dl>
 
-<span class="target" id="module-matrix_mixer"></span><span class="target" id="module-runtime"></span><dl class="class">
+<span class="target" id="module-runtime"></span><dl class="class">
 <dt id="runtime.Runtime">
 <em class="property">class </em><code class="descclassname">runtime.</code><code class="descname">Runtime</code><a class="headerlink" href="#runtime.Runtime" title="Permalink to this definition">¶</a></dt>
 <dd><dl class="method">
-<dt id="runtime.Runtime.check_queue">
-<code class="descname">check_queue</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#runtime.Runtime.check_queue" title="Permalink to this definition">¶</a></dt>
-<dd><p>If message to change model - call rebuild, if flag is changed - change proper variable</p>
-<p>TODO: start/stop messages</p>
+<dt id="runtime.Runtime.build">
+<code class="descname">build</code><span class="sig-paren">(</span><em>audio_config</em>, <em>post_filter_config</em>, <em>model_config</em><span class="sig-paren">)</span><a class="headerlink" href="#runtime.Runtime.build" title="Permalink to this definition">¶</a></dt>
+<dd><p>Builds and initializes all subcomponents, accepts dictionaries with parameters
+to the model classes as well as ‘mode’ parameter which chooses one of available classes.
+The models available are listed in MODEL_LIB and POSTFILTER_LIB in this module.</p>
 </dd></dl>
 
 <dl class="method">
@@ -220,22 +279,45 @@ from_file (str, optional): Path to the file from which read input, if not</p>
 should be elsewhere, training should be done in other files.</p>
 </dd></dl>
 
+<dl class="method">
+<dt id="runtime.Runtime.pause">
+<code class="descname">pause</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#runtime.Runtime.pause" title="Permalink to this definition">¶</a></dt>
+<dd><p>Stops processing for a while and awaits any other thread to restart it</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="runtime.Runtime.rebuild">
+<code class="descname">rebuild</code><span class="sig-paren">(</span><em>config</em><span class="sig-paren">)</span><a class="headerlink" href="#runtime.Runtime.rebuild" title="Permalink to this definition">¶</a></dt>
+<dd><p>Pick available configuration and rebuild the pipeline with that configuration</p>
+</dd></dl>
+
 </dd></dl>
 
 <span class="target" id="module-utils"></span><dl class="function">
 <dt id="utils.BufferMixin">
 <code class="descclassname">utils.</code><code class="descname">BufferMixin</code><span class="sig-paren">(</span><em>buffer_size=[1, 257], dtype=&lt;class 'numpy.float32'&gt;</em><span class="sig-paren">)</span><a class="headerlink" href="#utils.BufferMixin" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Factory of classes that are rolling buffers of appropriate type</p>
+</dd></dl>
 
 <dl class="class">
 <dt id="utils.Remix">
 <em class="property">class </em><code class="descclassname">utils.</code><code class="descname">Remix</code><span class="sig-paren">(</span><em>buffer_size</em>, <em>buffer_hop</em>, <em>channels</em><span class="sig-paren">)</span><a class="headerlink" href="#utils.Remix" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Reconstruction of signal by overlap and add</p>
+<dl class="method">
+<dt id="utils.Remix.process">
+<code class="descname">process</code><span class="sig-paren">(</span><em>sample</em><span class="sig-paren">)</span><a class="headerlink" href="#utils.Remix.process" title="Permalink to this definition">¶</a></dt>
+<dd><p>Method to call the reconstruction.</p>
+</dd></dl>
+
+</dd></dl>
 
 <dl class="class">
 <dt id="utils.AdaptiveGain">
 <em class="property">class </em><code class="descclassname">utils.</code><code class="descname">AdaptiveGain</code><span class="sig-paren">(</span><em>level=0.005</em>, <em>update_win=0.975</em>, <em>max_gain=10</em><span class="sig-paren">)</span><a class="headerlink" href="#utils.AdaptiveGain" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>Signal is enhanced in AdaptiveGain up to max_gain times to match
+the prespecified power level. The current power level is a windowed
+measurement to avoid suddent bursts of gain.</p>
+</dd></dl>
 
 </div>
 </div>

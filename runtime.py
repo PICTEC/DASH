@@ -110,11 +110,6 @@ class Runtime:
             self.client.publish("dash.pos", self.random_location)
 
     def check_queue(self):
-        """
-        If message to change model - call rebuild, if flag is changed - change proper variable
-
-        TODO: start/stop messages
-        """
         if self.Q:
             message = self.Q.pop().payload
             logger.info(message)
@@ -131,6 +126,9 @@ class Runtime:
                     self.play_processed = True
 
     def pause(self):
+        """
+        Stops processing for a while and awaits any other thread to restart it
+        """
         self.enabled = False
         self.audio.close()
         while not self.enabled:
@@ -139,12 +137,20 @@ class Runtime:
         self.audio.open()
 
     def rebuild(self, config):
+        """
+        Pick available configuration and rebuild the pipeline with that configuration
+        """
         audio_config, post_filter_config, model_config = [yaml.load(open(x)) for x in self.configurations[config]["configs"]]
         self.audio.close()  # this should clean all buffers
         self.build(audio_config, post_filter_config, model_config)
         self.audio.open()
 
     def build(self, audio_config, post_filter_config, model_config):
+        """
+        Builds and initializes all subcomponents, accepts dictionaries with parameters
+        to the model classes as well as 'mode' parameter which chooses one of available classes.
+        The models available are listed in MODEL_LIB and POSTFILTER_LIB in this module.
+        """
         if self.audio is None:
             self.audio = Audio(**audio_config)
         model_mode = model_config.pop("mode")
