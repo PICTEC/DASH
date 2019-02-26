@@ -7,7 +7,7 @@
 <body>
 <div class="navbar">
 <ul class="navbar-links">
-<img src="bin/logo.png" width="50px" />
+<img src="bin/logo.png" width="200px" />
 <li><a href="">Home</a></li>
 <li><a href="documentation.html">Documentation</a></li>
 <li><a href="matrix_spec.html">Microphone matrix specification</a></li>
@@ -49,9 +49,6 @@
 		Due to sparsity of speech signal this feat is not as difficult as it seems. Simple MVDR implementation may contain VAD module, which tells the beamformer
 		to update the matrix in the moments of silence. However VAD works holistically and cannot be reliably used if speech is rather continuous. There are multiple moments, where noise signal can be reliably obtained at selected frequencies. This is where the deep component kicks in.
 	</p>
-	<p>
-		See <a href="documentation.html#MVDR">MVDR in documentation</a>
-	</p>
   	<h3>Speech masking</h3>
   	<p>
   		Masks for speech may be obtained using various techniques, e.g. non-negative matrix factorization. In the demonstrator we
@@ -62,9 +59,6 @@
   		It should be said that proper speech masking may be used with good results to produce monophonic denoised speech signal.
   		Effects are better if outputs from network are scaled by some factor and cut off. Implementation of such a model is attached in the demonstrator.
   	</p>
-  	<p>
-		See <a href="documentation.html#MonoModel">Monophonic enhancement in documentation</a>
-   	</p>
   	<h3>Deep MVDR</h3>
   	<p>
   		Having obtained a mask for speech and noise, one can use it to determine in which moments appropriate source is active. When a given source is active, its' covariance matrix is updated using the following equation:
@@ -85,9 +79,6 @@
   		Denoising autoencoders are however one of the tools of choice for reconstruction of speech is proper amount of data is provided. An example implementation
   		is provided in the demonstration.
 	</p>
-	<p>
-		See <a href="documentation.html#PostFilter">Postfilter in documentation</a>
-   	</p>
   	<h3>Data</h3>
   	<p>
   		We have used LibriSpeech dataset for clean speech recordings (however they don't offer highest quality, but were sufficient for basic implementation). We also used recordings acquired in food courts in Gdańsk.

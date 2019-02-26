@@ -57,3 +57,7 @@ a, h3, h4, emph {
 .navbar-links li a:hover{
   color: #ffffff;
 }
+
+ul img {
+  vertical-align: middle;
+}
