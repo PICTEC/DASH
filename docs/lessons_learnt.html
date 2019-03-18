@@ -18,7 +18,196 @@
 <div class="three">
   <div class="left-column"><p></p></div>
   <div class="main">
-  	Article in progress... Visit in few days ;)
+    <p>
+      The DASH project was our clash with delivering real-time, production ready solution.
+      Training models running in RT and optimizing the code for RT has shown some challenges
+      that were not obvious at the first sight in offline development.
+    </p>
+    <p>
+      Our initial vision was to deliver beamforming model and apply a postfilter that would
+      recognize speech and speech only. While we produced both parts of the pipeline, they
+      could not be run together without experiencing delays. Our initial goal was to process
+      an audio frame in 8ms, which was not unreasonable given the sheer compute amount provided
+      by NVidia Xavier. Making any reasonable model run in 8ms was very hard, therefore had to settle
+      to 16 millisecond window.
+    </p>
+    <p>
+      The core of the problem lied in the multiprocessing nature of the system. While we had
+      an audio pipeline for processing of the frames, audio capture was best done in parallel,
+      which in turn with infamous GIL, didn't really matter - they "stole" the time from the main
+      thread whenever audio frame was available. Yielding from threads reduced the load by avoiding
+      busy loops but still took a reasonable amount of time. We didn't manage to move the audio
+      to separate process as we have done with GUI thread, but this could've been the solution.
+    </p>
+    <p>
+      Finally, when we reduced all interference to our software, we focused on optimization of 
+      the main loop. There were two different parts: the ANN runtime and the rest of the models.
+    </p>
+    <p>
+      We benchmarked the ANNs and removed some code introduced by Keras' <code>predict()</code>
+      by accessing the tensorgraph directly. The speed up was negligible, so I investigated on the
+      speed of Xavier's GPU, which was underwhelming. I've used <i>cupy</i> for some mock
+      multiplications, which are the most important operations in ANN computation. I've tested both
+      float32 and float16 (which allegedly speeds up Xavier even more), but there results here are
+      for float32 only:
+    </p>
+    <code>
+    import cupy as cp<br>
+    import timeit<br>
+    <br>
+    for i in range(3):<br>
+    &nbsp;&nbsp;print("Iteration", i)<br>
+    &nbsp;&nbsp;print("Plain:")<br>
+    &nbsp;&nbsp;shapes = [<br>
+    &nbsp;&nbsp;[1, 1, 256], <br>
+    &nbsp;&nbsp;[1, 1, 257], <br>
+    &nbsp;&nbsp;[1, 1, 512], <br>
+    &nbsp;&nbsp;[1, 8, 257], <br>
+    &nbsp;&nbsp;[1, 17, 257],<br>
+    &nbsp;&nbsp;[1, 256, 256],<br>
+    &nbsp;&nbsp;[1, 257, 257], <br>
+    &nbsp;&nbsp;[1, 1, 514], <br>
+    &nbsp;&nbsp;[1, 1, 1024], <br>
+    &nbsp;&nbsp;[8, 1, 257], <br>
+    &nbsp;&nbsp;[8, 17, 257], <br>
+    &nbsp;&nbsp;[8, 257, 257], <br>
+    &nbsp;&nbsp;]<br>
+    &nbsp;&nbsp;for shape in shapes:<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;A = cp.random.random(shape)<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;B = cp.random.random([shape[-1], shape[-1]])<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;t = timeit.timeit(stmt='A @ B', number = 1000, globals=vars())<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;print("{}: {:5}ms".format(shape, 1000*t))<br>
+    &nbsp;&nbsp;print("with reshaping:")<br>
+    &nbsp;&nbsp;shapes = [<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;[8, 17, 257],<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;[8, 257, 257]<br>
+    &nbsp;&nbsp;]<br>
+    &nbsp;&nbsp;for shape in shapes:<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;A = cp.random.random(shape)<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;reduced = [shape[0] * shape[1], shape[2]]<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;B = cp.random.random([shape[-1], shape[-1]])<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;t = timeit.timeit(stmt='(A.reshape(reduced) @ B).reshape(shape)', number = 1000, globals=vars())<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;print("{}: {:5}ms".format(shape, 1000*t))<br>
+    <br>
+    Iteration 0<br>
+    Plain:<br>
+    [1, 1, 256]: 164.49233399907826ms<br>
+    [1, 1, 257]: 162.88181699928828ms<br>
+    [1, 1, 512]: 166.9752489997336ms<br>
+    [1, 8, 257]: 167.6263890003611ms<br>
+    [1, 17, 257]: 167.69980000026408ms<br>
+    [1, 256, 256]: 458.2765119994292ms<br>
+    [1, 257, 257]: 1007.2193309988506ms<br>
+    [1, 1, 514]: 1576.276236999547ms<br>
+    [1, 1, 1024]: 2555.831270999988ms<br>
+    [8, 1, 257]: 3887.888352999653ms<br>
+    [8, 17, 257]: 2933.9079300007143ms<br>
+    [8, 257, 257]: 10879.743296000015ms<br>
+    with reshaping:<br>
+    [8, 17, 257]: 259.31916999979876ms<br>
+    [8, 257, 257]: 4703.092271998685ms<br>
+    <br>
+    Iteration 1<br>
+    Plain:<br>
+    [1, 1, 256]: 4289.341556001091ms<br>
+    [1, 1, 257]: 164.3023919987172ms<br>
+    [1, 1, 512]: 166.42528699958348ms<br>
+    [1, 8, 257]: 164.3583299992315ms<br>
+    [1, 17, 257]: 166.11496699988493ms<br>
+    [1, 256, 256]: 457.8283579994604ms<br>
+    [1, 257, 257]: 1007.2986830000445ms<br>
+    [1, 1, 514]: 1576.207312000406ms<br>
+    [1, 1, 1024]: 2555.8297309999034ms<br>
+    [8, 1, 257]: 3914.368211000692ms<br>
+    [8, 17, 257]: 2891.042434001065ms<br>
+    [8, 257, 257]: 10868.77109300076ms<br>
+    with reshaping:<br>
+    [8, 17, 257]: 263.361987999815ms<br>
+    [8, 257, 257]: 4703.685815999052ms<br>
+    <br>
+    Iteration 2<br>
+    Plain:<br>
+    [1, 1, 256]: 4291.740508999283ms<br>
+    [1, 1, 257]: 161.3545760010311ms<br>
+    [1, 1, 512]: 166.4497570000094ms<br>
+    [1, 8, 257]: 165.88479900019593ms<br>
+    [1, 17, 257]: 167.56536799948663ms<br>
+    [1, 256, 256]: 458.38125000045693ms<br>
+    [1, 257, 257]: 1006.7699740011449ms<br>
+    [1, 1, 514]: 1576.1703009993653ms<br>
+    [1, 1, 1024]: 2555.9492989996215ms<br>
+    [8, 1, 257]: 3986.134861001119ms<br>
+    [8, 17, 257]: 2946.6131969984417ms<br>
+    [8, 257, 257]: 10875.999005000267ms<br>
+    with reshaping:<br>
+    [8, 17, 257]: 265.01908200043545ms<br>
+    [8, 257, 257]: 4700.0457489994005ms<br>
+    </code>
+    <p>
+      What has stricken me was the lack of differences between several first shapes and
+      drastic effect of thresholding (e.g. 512 vs 514 units in multiplication) on the total runtime.
+      The Xavier unit has 512 cores that operate in parallel, so that threshold seemed natural. But
+      some differences between computation times were surprising. It seemed that reshaping the
+      input from batches to time dimension reduced the runtime drastically without changing the
+      meaning of the operation. It was <i>more</i> optimal to perform double transposition and
+      multiplication on transposed arrays than the straightforward operation.
+    </p>
+    <p>
+      This all could've been the gimmicks of the cupy implementation. Our observations however
+      were confirmed in practice, as we were able to run LSTM on eight concurrent channels
+      with no noticeable slowdown compared to a single channel. This helped us a lot and pointed
+      out how inefficient our code was with the compute that was available.
+    </p>
+    <p>
+      Tegra units are made for image processing, which is significatly different than 
+      dense computations we performed in our networks. This could explain the significant loss
+      of performance as most image processing consists of 4D convolution operation and the hardware
+      was optimized for this operation. Nevertheless we wanted to use the GPU for other operations
+      that could be easily parallelized. The MVDR after all is calculated at each frequency separately.
+    </p>
+    <p>
+      MVDR and other parts that were required to use it had two bottleneck operations. First
+      was inversion of the covariance matrices. The second - finding the eigenvector.
+    </p>
+    <p>
+      Our first implementation using numpy used for loop and np.linalg.inv() and was obviously inefficient.
+      Built-in inv() can be run in parallel for each matrix designated by last two indices and
+      this solution solved the problem slightly above 7ms of wall time. This was insufficient, but
+      we couldn't shave it off. Natural thought was to run it on GPU. CuPy implementation however
+      performed the inversion 
+    </p>
+    <p>
+      Similar problems were encountered in eigenvector decomposition. Our final solution was
+      to use an iterative method that moved the eigenvector towards the desired direction with
+      each iteration. Cupy implementation was of no help either.
+    </p>
+    <p>
+      Single channel instances of DASH demo were able to run more smoothly on my i5 laptop than
+      on the Xavier. This has shown how underutilized the GPU was.
+    </p>
+    <p>
+      Xavier is an excellent tool capable of running multiple data streams in parallel. Our project
+      wasn't the most optimized, but the results are interesting - we probably would be able to 
+      process more recordings at once (we didn't hit the limit on channels), but not necessarily faster.
+      Our autoencoders could reliably run under 6ms out of required 16ms and there were no problem
+      with running multiple channels at once in our masking network. Xavier offers interesting scaling
+      possibilities, but those are probably mostly horizontal as far as real-time is concerned. Operations
+      that are not typically expressed as multiplication of large matrices were not optimal, especially when
+      the task consisted of multitude of very small matrices (as in the inversion). If you are building
+      real-time solution on Xavier, stick to neural networks and avoid unconventional operations. LSTM
+      is also probably the bad solution unless you really need it.
+    </p>
+    <p>
+      This conclusion could obviously be incomplete, as there are dedicated units for other operations,
+      as well as dedicated sound processing unit. We didn't touch this submodule (and could not find
+      any documentation either), therefore it is possible that using some clever low-level programming
+      and crafting the implementations of the algorithms to be run in speech enhancement methods
+      the limitation we experienced can be omitted.
+    </p>      
+    </p>
+    <p>
+    - Paweł Tomasik
+    </p>
   </div>
   <div class="right-column"></div>
 </div> 
